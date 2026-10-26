@@ -193,7 +193,8 @@
         showForkHelp("The Google Forms API isn't enabled in this site's Google Cloud project.");
         setStatus("");
       } else if (err.status === 403 || err.status === 404) {
-        showForkHelp(`Your account (${WorkoutAuth.user.email}) doesn't have access to this site's Google Form.`);
+        showForkHelp(`Your account (${WorkoutAuth.user.email}) doesn't have access to this site's Google Form, or the form wasn't found. ` +
+          "If you own this site, check that form.formId in config.js is the ID from the form editor URL (docs.google.com/forms/d/<ID>/edit), not the response spreadsheet's ID.");
         setStatus("");
       } else {
         setStatus(`Google Forms API error: ${err.message}`, "error");
@@ -202,7 +203,8 @@
     }
     if (err.code === "popup_closed" || err.code === "popup_failed_to_open") {
       setStatus(interactive
-        ? "The Google permission window was closed or blocked. Allow pop-ups and press Load my data."
+        ? "The Google permission window was closed or blocked. Allow pop-ups and press Load my data. " +
+          "If Google said \"Access blocked … has not completed the Google verification process\", add your account as a test user on the site's OAuth consent screen."
         : "Press Load my data to give read access to your workout data.", interactive ? "error" : "");
     } else if (err.code === "access_denied") {
       setStatus("Read access to the form wasn't granted, so trends can't be shown. Press Load my data to try again.", "error");
