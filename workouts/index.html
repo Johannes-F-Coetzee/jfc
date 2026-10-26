@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workout Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../">&larr; Home</a>
+    <h1>Workout Tracker</h1>
+    <div id="user-box" class="user-box" hidden>
+      <img id="user-avatar" alt="" referrerpolicy="no-referrer">
+      <span id="user-name"></span>
+      <button type="button" id="sign-out" class="btn ghost small">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="setup-warning" class="card warning" hidden></section>
+
+    <section id="login-view" class="card center">
+      <h2>Sign in</h2>
+      <p>Sign in with your Google account to log your workouts.</p>
+      <div id="google-signin-button"></div>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="tracker-view" hidden>
+      <form id="workout-form" class="card" novalidate>
+        <div class="grid">
+          <label class="field">Date
+            <input type="date" id="workout-date" required>
+          </label>
+          <label class="field">Routine
+            <input id="routine-name" list="routine-list" placeholder="e.g. Upper body A" autocomplete="off">
+            <datalist id="routine-list"></datalist>
+          </label>
+        </div>
+        <div class="row">
+          <button type="button" id="load-routine" class="btn ghost small">Load saved routine</button>
+          <button type="button" id="save-routine" class="btn ghost small">Save as routine</button>
+          <button type="button" id="clear-workout" class="btn ghost small">Clear</button>
+        </div>
+
+        <div id="exercises"></div>
+        <datalist id="exercise-names"></datalist>
+
+        <button type="button" id="add-exercise" class="btn secondary">+ Add exercise</button>
+
+        <label class="field">Session notes
+          <textarea id="session-notes" rows="2" placeholder="How did the session feel overall?"></textarea>
+        </label>
+
+        <button type="submit" id="submit-workout" class="btn primary block">Submit workout</button>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div id="queue-box" class="queue" hidden>
+          <span id="queue-text"></span>
+          <button type="button" id="retry-queue" class="btn ghost small">Retry now</button>
+        </div>
+      </form>
+
+      <section class="card">
+        <h2>Recent workouts <small>(this device)</small></h2>
+        <ul id="history" class="history"></ul>
+      </section>
+    </section>
+  </main>
+
+  <template id="exercise-template">
+    <article class="exercise" data-measure="reps">
+      <div class="exercise-head">
+        <input class="ex-name" placeholder="Exercise (e.g. Push-ups)" list="exercise-names" aria-label="Exercise name" autocomplete="off">
+        <select class="ex-measure" aria-label="Measure">
+          <option value="reps">Reps</option>
+          <option value="time">Time</option>
+        </select>
+        <button type="button" class="icon-btn ex-remove" title="Remove exercise" aria-label="Remove exercise">&times;</button>
+      </div>
+      <div class="sets"></div>
+      <button type="button" class="btn ghost small ex-add-set">+ Add set</button>
+    </article>
+  </template>
+
+  <template id="set-template">
+    <div class="set">
+      <span class="set-no"></span>
+      <label class="field reps-field">Reps
+        <input class="set-reps" type="number" min="0" step="1" inputmode="numeric">
+      </label>
+      <label class="field time-field">Time (m:ss)
+        <span class="time-input">
+          <input class="set-time" placeholder="0:45" inputmode="numeric" autocomplete="off">
+          <button type="button" class="btn small set-timer" title="Start/stop timer">&#9654;</button>
+        </span>
+      </label>
+      <label class="field weight-field">Weight (kg)
+        <input class="set-weight" type="number" min="0" step="0.5" inputmode="decimal">
+      </label>
+      <label class="field rpe-field">Perceived difficulty
+        <span class="rpe">
+          <input class="set-rpe" type="range" min="1" max="10" step="1" value="5">
+          <output class="rpe-out"></output>
+        </span>
+      </label>
+      <label class="field notes-field">Notes
+        <input class="set-notes" autocomplete="off">
+      </label>
+      <button type="button" class="icon-btn set-remove" title="Remove set" aria-label="Remove set">&times;</button>
+    </div>
+  </template>
+</body>
+</html>
