@@ -4,12 +4,10 @@
   const CONFIG = window.WORKOUT_CONFIG || {};
   const FORM = CONFIG.form || {};
   const KEYS = {
-    user: "workout.user",
     draft: "workout.draft",
     queue: "workout.queue",
     history: "workout.history"
   };
-  const SESSION_HOURS = 12;
   const RPE_LABELS = {
     1: "Very light", 2: "Light", 3: "Light", 4: "Moderate", 5: "Moderate",
     6: "Moderate+", 7: "Hard", 8: "Hard+", 9: "Very hard", 10: "Max effort"
@@ -19,7 +17,6 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
   let currentUser = null;
-  let googleInitialized = false;
   let flushing = false;
   const ROUTINES_URL = "routines.json";
   let fileRoutines = new Map();
@@ -39,9 +36,6 @@
   }
 
   // ---------- configuration checks ----------
-  function hasClientId() {
-    return typeof CONFIG.googleClientId === "string" && CONFIG.googleClientId.trim() !== "";
-  }
   function hasFormConfig() {
     const fields = FORM.fields || {};
     return typeof FORM.actionUrl === "string" &&
@@ -51,7 +45,7 @@
 
   function showSetupWarnings() {
     const problems = [];
-    if (!hasClientId()) problems.push("<code>googleClientId</code> is not set - Google sign-in is disabled.");
+    if (!WorkoutAuth.hasClientId()) problems.push("<code>googleClientId</code> is not set - Google sign-in is disabled.");
     if (!hasFormConfig()) problems.push("The Google Form <code>actionUrl</code> / entry IDs are not set - workouts cannot be submitted.");
     const box = $("#setup-warning");
     if (problems.length) {
@@ -61,106 +55,20 @@
     }
   }
 
-  // ---------- authentication ----------
-  function decodeJwt(token) {
-    const part = token.split(".")[1];
-    const b64 = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=");
-    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes));
-  }
-
-  function isAllowed(email) {
-    const list = (CONFIG.allowedEmails || []).map(e => String(e).trim().toLowerCase()).filter(Boolean);
-    return list.length === 0 || list.includes(email.toLowerCase());
-  }
-
-  function showLoginError(message) {
-    $("#login-error").textContent = message;
-  }
-
-  // Global so it can also be used as a GIS HTML-API data-callback.
-  window.handleCredentialResponse = function (response) {
-    let payload;
-    try {
-      payload = decodeJwt(response.credential);
-    } catch {
-      showLoginError("Could not read the Google sign-in response.");
-      return;
-    }
-    const issuerOk = payload.iss === "accounts.google.com" || payload.iss === "https://accounts.google.com";
-    if (!issuerOk || payload.aud !== CONFIG.googleClientId) {
-      showLoginError("Sign-in response was not issued for this site.");
-      return;
-    }
-    if (!payload.email || payload.email_verified === false) {
-      showLoginError("Your Google account email is not verified.");
-      return;
-    }
-    if (payload.exp * 1000 < Date.now()) {
-      showLoginError("Sign-in expired, please try again.");
-      return;
-    }
-    if (!isAllowed(payload.email)) {
-      showLoginError(`${payload.email} is not authorised to use this tracker.`);
-      if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
-      return;
-    }
-    const user = {
-      email: payload.email,
-      name: payload.name || payload.email,
-      picture: payload.picture || "",
-      expiresAt: Date.now() + SESSION_HOURS * 3600 * 1000
-    };
-    writeJson(sessionStorage, KEYS.user, user);
-    showLoginError("");
-    showTracker(user);
-  };
-
-  function restoreUser() {
-    const user = readJson(sessionStorage, KEYS.user, null);
-    if (user && user.expiresAt > Date.now() && isAllowed(user.email)) return user;
-    sessionStorage.removeItem(KEYS.user);
-    return null;
-  }
-
-  function initGoogle() {
-    if (googleInitialized || !hasClientId() || !window.google?.accounts?.id) return;
-    googleInitialized = true;
-    google.accounts.id.initialize({
-      client_id: CONFIG.googleClientId,
-      callback: window.handleCredentialResponse,
-      auto_select: true,
-      cancel_on_tap_outside: true
-    });
-    google.accounts.id.renderButton($("#google-signin-button"), {
-      theme: "filled_blue", size: "large", shape: "pill", text: "signin_with"
-    });
-    if (!currentUser) google.accounts.id.prompt();
-  }
-
-  function signOut() {
-    sessionStorage.removeItem(KEYS.user);
-    currentUser = null;
-    if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
-    $("#tracker-view").hidden = true;
-    $("#user-box").hidden = true;
-    $("#login-view").hidden = false;
-  }
-
+  // ---------- authentication (see auth.js) ----------
   function showTracker(user) {
     currentUser = user;
-    $("#login-view").hidden = true;
     $("#tracker-view").hidden = false;
-    $("#user-box").hidden = false;
-    $("#user-name").textContent = user.name;
-    const avatar = $("#user-avatar");
-    avatar.hidden = !user.picture;
-    if (user.picture) avatar.src = user.picture;
     $("#submit-workout").disabled = !hasFormConfig();
     refreshRoutineList();
     renderHistory();
     updateQueueUi();
     flushQueue();
+  }
+
+  function hideTracker() {
+    currentUser = null;
+    $("#tracker-view").hidden = true;
   }
 
   // ---------- duration helpers ----------
@@ -658,7 +566,6 @@
       setStatus(sent ? "All pending sets sent." : "Still offline - will retry automatically.", sent ? "ok" : "error");
     });
 
-    $("#sign-out").addEventListener("click", signOut);
     window.addEventListener("online", () => currentUser && flushQueue());
   }
 
@@ -668,12 +575,7 @@
     wireEvents();
     renderWorkout(readJson(localStorage, KEYS.draft, {}));
     loadRoutinesFile();
-
-    const user = restoreUser();
-    if (user) showTracker(user);
-
-    if (window.google?.accounts?.id) initGoogle();
-    else window.onGoogleLibraryLoad = initGoogle;
+    WorkoutAuth.init({ onSignIn: showTracker, onSignOut: hideTracker });
   }
 
   boot();

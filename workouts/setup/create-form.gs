@@ -58,7 +58,7 @@ function createWorkoutForm() {
   });
 
   const actionUrl = form.getPublishedUrl().replace(/\/viewform.*$/, "/formResponse");
-  const snippet = "form: " + JSON.stringify({ actionUrl: actionUrl, fields: fields }, null, 2);
+  const snippet = "form: " + JSON.stringify({ formId: form.getId(), actionUrl: actionUrl, fields: fields }, null, 2);
 
   Logger.log("Form editor: " + form.getEditUrl());
   Logger.log("Paste into workouts/config.js:\n" + snippet);

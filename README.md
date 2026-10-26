@@ -6,6 +6,7 @@ Static GitHub Pages site.
 |------|------|
 | Home | [`index.html`](index.html) |
 | Workout tracker | [`workouts/`](workouts/) |
+| Workout trends | [`workouts/trends.html`](workouts/trends.html) |
 
 ## Workout tracker
 
@@ -14,9 +15,20 @@ Static GitHub Pages site.
 - **Google sign-in** (Google Identity Services). An optional email allow-list restricts access.
 - Per exercise you choose **Reps** or **Time**, then log each set. Each set records reps or duration (with a built-in stopwatch), optional weight, **perceived difficulty (RPE 1–10)**, and notes.
 - **Google Forms backend**: every set is posted as one form response, so the linked Google Sheet gets one row per set.
-- Routines live in [`workouts/routines.json`](workouts/routines.json). **Load saved routine** fills the form from that file. **Export routines (JSON)** downloads an updated `routines.json` with the current workout added; an existing routine with the same name is replaced. Commit the downloaded file over `workouts/routines.json` to publish it.
+- Routines live in [`workouts/routines.json`](workouts/routines.json). **Load configured routine** fills the form from that file. **Export routine (JSON)** downloads an updated `routines.json` with the current workout added; an existing routine with the same name is replaced. Commit the downloaded file over `workouts/routines.json` to publish it.
 - An **estimated time** is shown next to *Submit workout*. Timed sets count as entered, each rep counts as 10 seconds, and 1 minute of rest is added between consecutive sets.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
+
+### Trends page
+
+[`workouts/trends.html`](workouts/trends.html) reads the form's responses through the **Google Forms API**, using the signed-in Google account. It keeps only the rows whose `email` matches that account and shows:
+
+- summary totals for the selected period (30 days, 90 days, 12 months or all time)
+- a per-routine table: workouts, average sets, average estimated time, and difficulty change
+- a per-exercise chart and table: total reps, best set, max weight, volume, time, and average difficulty
+- an all-exercises overview with the change since the previous workout
+
+Reading responses requires **edit access to the form**. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
 
 ### Workout tracker setup
 
@@ -33,7 +45,12 @@ Static GitHub Pages site.
    - Put the client ID in `googleClientId` in [`workouts/config.js`](workouts/config.js).
    - Optionally, list permitted accounts in `allowedEmails`.
 
-3. **Publish**: commit and push, and make sure GitHub Pages is enabled for the branch under *Settings → Pages*. The tracker is served at `https://johannes-f-coetzee.github.io/jfc.github.io/workouts/`.
+3. **Enable the trends page** (optional)
+   - Set `form.formId` in [`workouts/config.js`](workouts/config.js). This is the ID in the form **editor** URL (`docs.google.com/forms/d/<formId>/edit`), not the `/d/e/...` published ID. `create-form.gs` logs it for you.
+   - In Cloud Console, enable the **Google Forms API** (*APIs & Services → Library*).
+   - On the OAuth consent screen, add the scopes `https://www.googleapis.com/auth/forms.body.readonly` and `https://www.googleapis.com/auth/forms.responses.readonly`. While the app is in *Testing*, also add each user as a *test user*.
+
+4. **Publish**: commit and push, and make sure GitHub Pages is enabled for the branch under *Settings → Pages*. The tracker is served at `https://johannes-f-coetzee.github.io/jfc.github.io/workouts/`.
 
 Local testing: `python -m http.server 8000`, then open <http://localhost:8000/workouts/>. Opening the file directly with `file://` won't work, because the page can't fetch `routines.json` that way.
 

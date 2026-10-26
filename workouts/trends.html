@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workout Trends</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="auth.js" defer></script>
+  <script src="trends.js" defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../">&larr; Home</a>
+    <h1>Workout Trends</h1>
+    <nav class="nav"><a href="./">Log</a><a href="trends.html" aria-current="page">Trends</a></nav>
+    <div id="user-box" class="user-box" hidden>
+      <img id="user-avatar" alt="" referrerpolicy="no-referrer">
+      <span id="user-name"></span>
+      <button type="button" id="sign-out" class="btn ghost small">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="login-view" class="card center">
+      <h2>Sign in</h2>
+      <p>Sign in with your Google account to see your routines and exercise trends.</p>
+      <div id="google-signin-button"></div>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="trends-view" hidden>
+      <div class="card toolbar">
+        <button type="button" id="load-data" class="btn primary">Load my data</button>
+        <label class="field inline">Period
+          <select id="range">
+            <option value="30">Last 30 days</option>
+            <option value="90" selected>Last 90 days</option>
+            <option value="365">Last 12 months</option>
+            <option value="0">All time</option>
+          </select>
+        </label>
+        <p id="trends-status" class="status" role="status" aria-live="polite"></p>
+      </div>
+
+      <section id="fork-help" class="card warning" hidden>
+        <h2>You can't read this site's workout data</h2>
+        <p id="fork-reason"></p>
+        <p>Workout data is stored in the site owner's Google Form, and only people who can edit that form can view
+          the trends. To track your own workouts, fork the code and set it up with your own Google Form:</p>
+        <ol class="steps">
+          <li><strong>Fork the repository.</strong> Open
+            <a id="fork-link" href="https://github.com/Johannes-F-Coetzee/jfc.github.io/fork" target="_blank" rel="noopener">the fork page</a>
+            and create a fork in your GitHub account.</li>
+          <li><strong>Turn on GitHub Pages.</strong> In your fork, open <em>Settings &rarr; Pages</em> and choose
+            <em>Deploy from a branch</em> with the <code>main</code> branch and <code>/ (root)</code> folder. Your site will be at
+            <code>https://&lt;your-user&gt;.github.io/&lt;repo-name&gt;/workouts/</code>.</li>
+          <li><strong>Create your Google Form.</strong> At <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>,
+            create a project, paste in <code>workouts/setup/create-form.gs</code> and run <code>createWorkoutForm</code>.
+            It creates the form and a response spreadsheet, then prints a <code>form: {...}</code> block.</li>
+          <li><strong>Create a Google Cloud project.</strong> In the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
+            <ul>
+              <li>Enable the <strong>Google Forms API</strong> under <em>APIs &amp; Services &rarr; Library</em>.</li>
+              <li>Set up the <em>OAuth consent screen</em> and add your Google account as a test user.</li>
+              <li>Under <em>Credentials</em>, create an <em>OAuth client ID</em> of type <em>Web application</em>. Add
+                <code>https://&lt;your-user&gt;.github.io</code> and, for local testing, <code>http://localhost</code> and
+                <code>http://localhost:8000</code> as <em>Authorized JavaScript origins</em>.</li>
+            </ul>
+          </li>
+          <li><strong>Update <code>workouts/config.js</code>.</strong> Set <code>googleClientId</code> to your client ID, replace the
+            <code>form</code> block with the one printed in step 3, and optionally set <code>allowedEmails</code>.</li>
+          <li><strong>Add your routines.</strong> Edit <code>workouts/routines.json</code>, or use <em>Export routine (JSON)</em> on the
+            Log page and commit the downloaded file.</li>
+          <li><strong>Commit and push.</strong> After GitHub Pages redeploys, sign in on your own site to log workouts and view your trends.</li>
+        </ol>
+        <p class="muted">The full guide is in the repository's README.</p>
+      </section>
+
+      <div id="results" hidden>
+        <section class="summary" id="summary"></section>
+
+        <section class="card">
+          <h2>Routines</h2>
+          <div class="table-wrap"><table id="routines-table"></table></div>
+        </section>
+
+        <section class="card">
+          <h2>Exercise trend</h2>
+          <div class="grid">
+            <label class="field">Exercise
+              <select id="exercise-select"></select>
+            </label>
+            <label class="field">Metric
+              <select id="metric-select"></select>
+            </label>
+          </div>
+          <div id="chart" class="chart"></div>
+          <div class="table-wrap"><table id="exercise-table"></table></div>
+        </section>
+
+        <section class="card">
+          <h2>All exercises</h2>
+          <div class="table-wrap"><table id="exercises-table"></table></div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

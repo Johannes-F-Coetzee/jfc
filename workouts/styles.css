@@ -37,6 +37,11 @@ body {
 .topbar h1 { font-size: 1.2rem; margin: 0; flex: 1; }
 .brand { color: var(--accent); text-decoration: none; }
 
+.nav { display: flex; gap: 0.25rem; }
+.nav a { color: var(--muted); text-decoration: none; padding: 0.35rem 0.75rem; border-radius: 999px; }
+.nav a:hover { color: var(--text); }
+.nav a[aria-current="page"] { background: var(--border); color: var(--text); }
+
 .user-box { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 .user-box img { width: 28px; height: 28px; border-radius: 50%; }
 
@@ -157,6 +162,42 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 small { color: var(--muted); font-weight: normal; }
 
 code { background: rgba(0, 0, 0, 0.3); padding: 0 0.25rem; border-radius: 4px; }
+a { color: var(--accent); }
+
+/* ---------- trends page ---------- */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.toolbar .status { margin: 0; flex-basis: 100%; }
+.field.inline { flex-direction: row; align-items: center; gap: 0.5rem; }
+.field.inline select { width: auto; }
+
+.steps { padding-left: 1.25rem; }
+.steps li { margin-bottom: 0.6rem; }
+.steps ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem 1rem; display: flex; flex-direction: column; }
+.stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.stat-label { color: var(--muted); font-size: 0.8rem; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+tbody tr:hover { background: rgba(56, 189, 248, 0.06); }
+.up { color: var(--ok); }
+.down { color: var(--error); }
+
+.chart { margin: 1rem 0; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-size: 11px; }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+.chart circle { fill: var(--accent-strong); stroke: var(--bg); stroke-width: 2; }
+@media (max-width: 700px) {
+  .chart text { font-size: 20px; }
+  .chart .line { stroke-width: 4; }
+  .chart circle { r: 7; }
+}
 
 @media (max-width: 700px) {
   .set {

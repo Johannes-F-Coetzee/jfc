@@ -8,6 +8,10 @@ window.WORKOUT_CONFIG = {
   allowedEmails: [],
 
   form: {
+    // Edit ID of the form, used by the Trends page to read responses through the Google Forms API.
+    // It's the long ID in the form editor URL: https://docs.google.com/forms/d/<FORM_ID>/edit (not the /d/e/... ID).
+    formId: "",
+
     // https://docs.google.com/forms/d/e/<FORM_ID>/formResponse
     actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSekRNtRNtRDK-Uc00wci2ssLaoVX2jwJ0ayfvf0KNkRDV1AwA/formResponse",
     
