@@ -25,6 +25,7 @@
 
   let rows = [];
   let allRows = [];
+  let loadedAt = null;
   let loading = false;
 
   // ---------- helpers ----------
@@ -90,7 +91,7 @@
   }
 
   async function apiGet(path, token) {
-    const response = await fetch(`${API}/${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    const response = await fetch(`${API}/${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new ApiError(response.status, body);
     return body;
@@ -157,6 +158,14 @@
     loading = true;
     $("#load-data").disabled = true;
     $("#fork-help").hidden = true;
+    // Discard everything from the previous load so the view is rebuilt only from fresh form data.
+    const keepUser = $("#user-select").value;
+    rows = [];
+    allRows = [];
+    loadedAt = null;
+    $("#results").hidden = true;
+    $("#user-select").innerHTML = "";
+    $("#user-select").disabled = true;
     setStatus("Loading your workouts…");
     try {
       let token = await getToken(false);
@@ -174,7 +183,8 @@
       }
       const responses = await fetchAllResponses(token);
       allRows = responses.map(r => toRow(r, questionMap)).filter(r => r.exercise);
-      renderUserOptions();
+      loadedAt = new Date();
+      renderUserOptions(keepUser);
       applyUser();
     } catch (err) {
       handleLoadError(err, interactive);
@@ -214,9 +224,8 @@
   // ---------- user filter ----------
   const ALL_USERS = "*";
 
-  function renderUserOptions() {
+  function renderUserOptions(previous) {
     const select = $("#user-select");
-    const previous = select.value;
     const counts = new Map();
     allRows.forEach(r => counts.set(r.email, (counts.get(r.email) || 0) + 1));
     const users = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -236,9 +245,10 @@
     const selected = $("#user-select").value;
     rows = selected === ALL_USERS ? allRows : allRows.filter(r => r.email === selected);
     const who = selected === ALL_USERS ? "all users" : (selected || "(no email)");
+    const when = loadedAt ? ` Loaded from the form at ${loadedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "";
     setStatus(allRows.length
-      ? `Showing ${rows.length} set${rows.length === 1 ? "" : "s"} (all time) logged by ${who}.`
-      : "No workouts have been logged in this form yet.", allRows.length ? "ok" : "");
+      ? `Showing ${rows.length} set${rows.length === 1 ? "" : "s"} (all time) logged by ${who}.${when}`
+      : `No workouts have been logged in this form yet.${when}`, allRows.length ? "ok" : "");
     render();
   }
 
@@ -391,7 +401,8 @@
     metricSelect.innerHTML = available.map(k => `<option value="${k}">${METRICS[k].label}</option>`).join("");
     if (available.includes(previous)) metricSelect.value = previous;
     else metricSelect.value = ["maxWeight", "totalReps", "totalTime"].find(k => available.includes(k)) || available[0] || "";
-    const metric = metricSelect.value;
+
+    const metric = metricSelect.value;
 
     $("#chart").innerHTML = metric
       ? lineChart(sessions.filter(s => Number.isFinite(s[metric])).map(s => ({ date: s.date, value: s[metric] })), METRICS[metric])

@@ -28,7 +28,7 @@ Static GitHub Pages site.
 - a per-exercise chart and table: total reps, best set, max weight, volume, time, and average difficulty
 - an all-exercises overview with the change since the previous workout
 
-Reading responses requires **edit access to the form**. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
+Reading responses requires **edit access to the form**. **Load my data** always re-reads the form and all responses from Google (bypassing the browser cache), discarding previously loaded results; the status line shows when the data was loaded. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
 
 ### Workout tracker setup
 
