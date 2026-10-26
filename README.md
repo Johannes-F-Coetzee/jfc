@@ -14,7 +14,8 @@ Static GitHub Pages site.
 - **Google sign-in** (Google Identity Services). An optional email allow-list restricts access.
 - Per exercise you choose **Reps** or **Time**, then log each set. Each set records reps or duration (with a built-in stopwatch), optional weight, **perceived difficulty (RPE 1–10)**, and notes.
 - **Google Forms backend**: every set is posted as one form response, so the linked Google Sheet gets one row per set.
-- Routines are saved locally so you can reload them, the in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
+- Routines live in [`workouts/routines.json`](workouts/routines.json). **Load saved routine** fills the form from that file. **Export routines (JSON)** downloads an updated `routines.json` with the current workout added; an existing routine with the same name is replaced. Commit the downloaded file over `workouts/routines.json` to publish it.
+- The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
 
 ### Workout tracker setup
 
@@ -27,13 +28,31 @@ Static GitHub Pages site.
 
 2. **Create the Google OAuth client ID**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), configure the OAuth consent screen, then go to **Create credentials → OAuth client ID → Web application**.
-   - Under *Authorized JavaScript origins*, add `https://johannes-f-coetzee.github.io` (and `http://localhost:8000` for local testing).
+   - Under *Authorized JavaScript origins*, add `https://johannes-f-coetzee.github.io` (and both `http://localhost` and `http://localhost:8000` for local testing).
    - Put the client ID in `googleClientId` in [`workouts/config.js`](workouts/config.js).
    - Optionally, list permitted accounts in `allowedEmails`.
 
 3. **Publish**: commit and push, and make sure GitHub Pages is enabled for the branch under *Settings → Pages*. The tracker is served at `https://johannes-f-coetzee.github.io/jfc.github.io/workouts/`.
 
-Local testing: `python -m http.server 8000`, then open <http://localhost:8000/workouts/>.
+Local testing: `python -m http.server 8000`, then open <http://localhost:8000/workouts/>. Opening the file directly with `file://` won't work, because the page can't fetch `routines.json` that way.
+
+### Routines file format
+
+```json
+{
+  "routines": [
+    {
+      "name": "Upper body A",
+      "exercises": [
+        { "name": "Push-ups", "measure": "reps", "sets": [{ "reps": 12 }, { "reps": 10, "weightKg": 5 }] },
+        { "name": "Plank", "measure": "time", "sets": [{ "durationSeconds": 45 }] }
+      ]
+    }
+  ]
+}
+```
+
+`measure` is either `reps` or `time`. Each set may set `reps` (for reps), `durationSeconds` (for time) and an optional `weightKg`.
 
 ### Security notes
 

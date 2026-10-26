@@ -1,0 +1,30 @@
+{
+  "routines": [
+    {
+      "name": "Upper body A",
+      "exercises": [
+        { "name": "Push-ups", "measure": "reps", "sets": [{ "reps": 12 }, { "reps": 12 }, { "reps": 10 }] },
+        { "name": "Dumbbell row", "measure": "reps", "sets": [{ "reps": 10, "weightKg": 12.5 }, { "reps": 10, "weightKg": 12.5 }, { "reps": 10, "weightKg": 12.5 }] },
+        { "name": "Overhead press", "measure": "reps", "sets": [{ "reps": 8, "weightKg": 10 }, { "reps": 8, "weightKg": 10 }, { "reps": 8, "weightKg": 10 }] },
+        { "name": "Plank", "measure": "time", "sets": [{ "durationSeconds": 45 }, { "durationSeconds": 45 }] }
+      ]
+    },
+    {
+      "name": "Lower body A",
+      "exercises": [
+        { "name": "Squats", "measure": "reps", "sets": [{ "reps": 15 }, { "reps": 15 }, { "reps": 15 }] },
+        { "name": "Lunges", "measure": "reps", "sets": [{ "reps": 10 }, { "reps": 10 }, { "reps": 10 }] },
+        { "name": "Glute bridge", "measure": "reps", "sets": [{ "reps": 15 }, { "reps": 15 }] },
+        { "name": "Wall sit", "measure": "time", "sets": [{ "durationSeconds": 60 }, { "durationSeconds": 60 }] }
+      ]
+    },
+    {
+      "name": "Core",
+      "exercises": [
+        { "name": "Plank", "measure": "time", "sets": [{ "durationSeconds": 60 }, { "durationSeconds": 60 }] },
+        { "name": "Side plank", "measure": "time", "sets": [{ "durationSeconds": 30 }, { "durationSeconds": 30 }] },
+        { "name": "Dead bug", "measure": "reps", "sets": [{ "reps": 12 }, { "reps": 12 }] }
+      ]
+    }
+  ]
+}

@@ -6,7 +6,6 @@
   const KEYS = {
     user: "workout.user",
     draft: "workout.draft",
-    routines: "workout.routines",
     queue: "workout.queue",
     history: "workout.history"
   };
@@ -22,6 +21,9 @@
   let currentUser = null;
   let googleInitialized = false;
   let flushing = false;
+  const ROUTINES_URL = "routines.json";
+  let fileRoutines = new Map();
+  let routinesError = "";
 
   // ---------- storage helpers ----------
   function readJson(storage, key, fallback) {
@@ -297,29 +299,84 @@
       .map(ex => ({
         name: ex.name,
         measure: ex.measure,
-        sets: ex.sets.map(s => ({ reps: s.reps, durationSeconds: s.durationSeconds, weightKg: s.weightKg, rpe: 5 }))
+        sets: ex.sets.map(s => {
+          const set = {};
+          if (ex.measure === "reps" && Number.isFinite(s.reps)) set.reps = s.reps;
+          if (ex.measure === "time" && Number.isFinite(s.durationSeconds)) set.durationSeconds = s.durationSeconds;
+          if (Number.isFinite(s.weightKg)) set.weightKg = s.weightKg;
+          return set;
+        })
       }));
   }
 
-  function saveRoutine(name, workout) {
-    const exercises = routineTemplate(workout);
-    if (!name || !exercises.length) return false;
-    const routines = readJson(localStorage, KEYS.routines, {});
-    routines[name] = exercises;
-    writeJson(localStorage, KEYS.routines, routines);
+  // Accepts loosely-typed JSON from routines.json and returns a clean { name, exercises } or null.
+  function normalizeRoutine(raw) {
+    if (!raw || typeof raw.name !== "string" || !raw.name.trim() || !Array.isArray(raw.exercises)) return null;
+    const num = v => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+    const exercises = raw.exercises
+      .filter(ex => ex && typeof ex.name === "string" && ex.name.trim())
+      .map(ex => ({
+        name: ex.name.trim(),
+        measure: ex.measure === "time" ? "time" : "reps",
+        sets: (Array.isArray(ex.sets) && ex.sets.length ? ex.sets : [{}]).map(s => ({
+          reps: num(s?.reps),
+          durationSeconds: num(s?.durationSeconds),
+          weightKg: num(s?.weightKg)
+        }))
+      }));
+    return exercises.length ? { name: raw.name.trim(), exercises } : null;
+  }
+
+  async function loadRoutinesFile() {
+    try {
+      const response = await fetch(ROUTINES_URL, { cache: "no-cache" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const list = Array.isArray(data) ? data : data.routines;
+      if (!Array.isArray(list)) throw new Error("missing \"routines\" array");
+      fileRoutines = new Map();
+      list.map(normalizeRoutine).filter(Boolean).forEach(r => fileRoutines.set(r.name, r));
+      routinesError = "";
+    } catch (err) {
+      fileRoutines = new Map();
+      routinesError = `Could not load ${ROUTINES_URL}: ${err.message}`;
+    }
     refreshRoutineList();
-    return true;
+    refreshExerciseNames();
+  }
+
+  function findRoutine(name) {
+    if (fileRoutines.has(name)) return fileRoutines.get(name);
+    const lower = name.toLowerCase();
+    return [...fileRoutines.values()].find(r => r.name.toLowerCase() === lower) || null;
   }
 
   function refreshRoutineList() {
-    const routines = readJson(localStorage, KEYS.routines, {});
-    $("#routine-list").innerHTML = Object.keys(routines).sort()
+    $("#routine-list").innerHTML = [...fileRoutines.keys()].sort()
       .map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
+  }
+
+  function exportRoutines(typedName, workout) {
+    const exercises = routineTemplate(workout);
+    if (!exercises.length) return false;
+    const merged = new Map([...fileRoutines].map(([key, r]) => [key, { name: r.name, exercises: routineTemplate(r) }]));
+    const name = findRoutine(typedName)?.name || typedName;
+    merged.set(name, { name, exercises });
+    const json = JSON.stringify({ routines: [...merged.values()] }, null, 2) + "\n";
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "routines.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
   }
 
   function refreshExerciseNames() {
     const names = new Set();
-    Object.values(readJson(localStorage, KEYS.routines, {})).forEach(exs => exs.forEach(ex => names.add(ex.name)));
+    fileRoutines.forEach(r => r.exercises.forEach(ex => names.add(ex.name)));
     $$("#exercises .ex-name").forEach(input => input.value.trim() && names.add(input.value.trim()));
     $("#exercise-names").innerHTML = [...names].sort()
       .map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
@@ -450,7 +507,6 @@
       avgRpe: Math.round((rpes.reduce((a, b) => a + b, 0) / rpes.length) * 10) / 10
     });
     writeJson(localStorage, KEYS.history, history.slice(0, 20));
-    if (workout.routine) saveRoutine(workout.routine, workout);
 
     $("#submit-workout").disabled = true;
     setStatus("Sending…");
@@ -529,28 +585,37 @@
       saveDraft();
     });
 
-    $("#load-routine").addEventListener("click", () => {
+    $("#load-routine").addEventListener("click", async () => {
       const name = $("#routine-name").value.trim();
-      const routines = readJson(localStorage, KEYS.routines, {});
-      if (!routines[name]) {
-        setStatus(name ? `No saved routine called "${name}".` : "Type or pick a routine name first.", "error");
+      if (!name) {
+        setStatus("Type or pick a routine name first.", "error");
         return;
       }
-      renderWorkout({ date: $("#workout-date").value, routine: name, exercises: routines[name] });
+      await loadRoutinesFile();
+      if (routinesError) {
+        setStatus(routinesError, "error");
+        return;
+      }
+      const routine = findRoutine(name);
+      if (!routine) {
+        setStatus(`No routine called "${name}" in routines.json.`, "error");
+        return;
+      }
+      renderWorkout({ date: $("#workout-date").value, routine: routine.name, exercises: routine.exercises });
       saveDraft();
-      setStatus(`Loaded routine "${name}".`, "ok");
+      setStatus(`Loaded routine "${routine.name}".`, "ok");
     });
 
-    $("#save-routine").addEventListener("click", () => {
+    $("#export-routine").addEventListener("click", () => {
       const name = $("#routine-name").value.trim();
       if (!name) {
         setStatus("Enter a routine name first.", "error");
         return;
       }
-      const saved = saveRoutine(name, collectWorkout());
-      setStatus(saved ? `Routine "${name}" saved.` : "Add at least one named exercise before saving.",
-        saved ? "ok" : "error");
-      refreshExerciseNames();
+      const exported = exportRoutines(name, collectWorkout());
+      setStatus(exported
+        ? `Exported routines.json with "${name}". Replace workouts/routines.json in the repo with it to publish.`
+        : "Add at least one named exercise before exporting.", exported ? "ok" : "error");
     });
 
     $("#clear-workout").addEventListener("click", () => {
@@ -575,6 +640,7 @@
     showSetupWarnings();
     wireEvents();
     renderWorkout(readJson(localStorage, KEYS.draft, {}));
+    loadRoutinesFile();
 
     const user = restoreUser();
     if (user) showTracker(user);
