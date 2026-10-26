@@ -247,6 +247,7 @@
     btn.classList.add("running");
     setEl._timer = setInterval(() => {
       input.value = formatDuration(base + Math.floor((Date.now() - start) / 1000));
+      updateEstimate();
     }, 250);
   }
 
@@ -284,13 +285,39 @@
     $("#exercises").innerHTML = "";
     (workout.exercises && workout.exercises.length ? workout.exercises : [{}]).forEach(addExercise);
     refreshExerciseNames();
+    updateEstimate();
   }
 
   // ---------- drafts & routines ----------
   let draftTimer = null;
   function saveDraft() {
+    updateEstimate();
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => writeJson(localStorage, KEYS.draft, collectWorkout()), 300);
+  }
+
+  // Timed sets count as entered, each rep counts 10 s, plus 1 min rest between consecutive sets.
+  const SECONDS_PER_REP = 10;
+  const REST_BETWEEN_SETS = 60;
+  function estimateSeconds(workout) {
+    let work = 0;
+    let sets = 0;
+    workout.exercises.forEach(ex => ex.sets.forEach(s => {
+      sets += 1;
+      if (ex.measure === "time") work += Number.isFinite(s.durationSeconds) ? s.durationSeconds : 0;
+      else work += Number.isFinite(s.reps) ? s.reps * SECONDS_PER_REP : 0;
+    }));
+    return work + Math.max(0, sets - 1) * REST_BETWEEN_SETS;
+  }
+
+  function formatEstimate(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const rest = formatDuration(seconds % 3600);
+    return h ? `${h}:${rest.padStart(5, "0")}` : rest;
+  }
+
+  function updateEstimate() {
+    $("#estimated-time-value").textContent = formatEstimate(estimateSeconds(collectWorkout()));
   }
 
   function routineTemplate(workout) {

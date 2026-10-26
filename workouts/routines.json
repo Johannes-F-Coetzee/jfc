@@ -1,29 +1,321 @@
 {
   "routines": [
     {
-      "name": "Upper body A",
+      "name": "Pull",
       "exercises": [
-        { "name": "Push-ups", "measure": "reps", "sets": [{ "reps": 12 }, { "reps": 12 }, { "reps": 10 }] },
-        { "name": "Dumbbell row", "measure": "reps", "sets": [{ "reps": 10, "weightKg": 12.5 }, { "reps": 10, "weightKg": 12.5 }, { "reps": 10, "weightKg": 12.5 }] },
-        { "name": "Overhead press", "measure": "reps", "sets": [{ "reps": 8, "weightKg": 10 }, { "reps": 8, "weightKg": 10 }, { "reps": 8, "weightKg": 10 }] },
-        { "name": "Plank", "measure": "time", "sets": [{ "durationSeconds": 45 }, { "durationSeconds": 45 }] }
+        {
+          "name": "Pull-up",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "RDL",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Row",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Dead Hang",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        }
       ]
     },
     {
-      "name": "Lower body A",
+      "name": "Legs And Abs",
       "exercises": [
-        { "name": "Squats", "measure": "reps", "sets": [{ "reps": 15 }, { "reps": 15 }, { "reps": 15 }] },
-        { "name": "Lunges", "measure": "reps", "sets": [{ "reps": 10 }, { "reps": 10 }, { "reps": 10 }] },
-        { "name": "Glute bridge", "measure": "reps", "sets": [{ "reps": 15 }, { "reps": 15 }] },
-        { "name": "Wall sit", "measure": "time", "sets": [{ "durationSeconds": 60 }, { "durationSeconds": 60 }] }
+        {
+          "name": "Single Leg Squat Left",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            },
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            },
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            }
+          ]
+        },
+        {
+          "name": "Single Leg Squat Right",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            },
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            },
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            }
+          ]
+        },
+        {
+          "name": "Sissy Squat",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            },
+            {
+              "durationSeconds": 30,
+              "weightKg": 13.4
+            }
+          ]
+        },
+        {
+          "name": "Nortic Curl",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Abs Roller",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        }
       ]
     },
     {
-      "name": "Core",
+      "name": "Push",
       "exercises": [
-        { "name": "Plank", "measure": "time", "sets": [{ "durationSeconds": 60 }, { "durationSeconds": 60 }] },
-        { "name": "Side plank", "measure": "time", "sets": [{ "durationSeconds": 30 }, { "durationSeconds": 30 }] },
-        { "name": "Dead bug", "measure": "reps", "sets": [{ "reps": 12 }, { "reps": 12 }] }
+        {
+          "name": "Pike Push-up",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Push-up",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Dip",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Dead Hang",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Aux Work",
+      "exercises": [
+        {
+          "name": "Mega Hold",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Lateral Raises Leaning Left",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Lateral Raises Leaning Right",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Front Pulls",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Abs Roller",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Run",
+      "exercises": [
+        {
+          "name": "Push Red",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Recover Green",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 210
+            }
+          ]
+        }
       ]
     }
   ]

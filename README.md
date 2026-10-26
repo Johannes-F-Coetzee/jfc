@@ -15,6 +15,7 @@ Static GitHub Pages site.
 - Per exercise you choose **Reps** or **Time**, then log each set. Each set records reps or duration (with a built-in stopwatch), optional weight, **perceived difficulty (RPE 1–10)**, and notes.
 - **Google Forms backend**: every set is posted as one form response, so the linked Google Sheet gets one row per set.
 - Routines live in [`workouts/routines.json`](workouts/routines.json). **Load saved routine** fills the form from that file. **Export routines (JSON)** downloads an updated `routines.json` with the current workout added; an existing routine with the same name is replaced. Commit the downloaded file over `workouts/routines.json` to publish it.
+- An **estimated time** is shown next to *Submit workout*. Timed sets count as entered, each rep counts as 10 seconds, and 1 minute of rest is added between consecutive sets.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
 
 ### Workout tracker setup

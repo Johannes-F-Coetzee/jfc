@@ -139,6 +139,11 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .rpe { display: flex; align-items: center; gap: 0.5rem; min-height: 2.4rem; }
 .rpe-out { white-space: nowrap; color: var(--text); font-size: 0.85rem; min-width: 6.5rem; }
 
+.submit-row { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+.submit-row .btn { flex: 1; }
+.estimate { white-space: nowrap; color: var(--muted); font-size: 0.9rem; }
+.estimate strong { color: var(--text); font-size: 1.1rem; margin-left: 0.25rem; }
+
 .status { min-height: 1.2em; margin: 0.75rem 0 0; }
 .status.ok { color: var(--ok); }
 .status.error, .error { color: var(--error); }
