@@ -21,7 +21,7 @@ Static GitHub Pages site.
 
 ### Trends page
 
-[`workouts/trends.html`](workouts/trends.html) reads the form's responses through the **Google Forms API**, using the signed-in Google account. It keeps only the rows whose `email` matches that account and shows:
+[`workouts/trends.html`](workouts/trends.html) reads the form's responses through the **Google Forms API**, using the signed-in Google account. A **User** dropdown lists every email that has logged sets (with set counts) plus *All users*. It defaults to the signed-in account when that account has data, otherwise to the user with the most sets. For the selected user the page shows:
 
 - summary totals for the selected period (30 days, 90 days, 12 months or all time)
 - a per-routine table: workouts, average sets, average estimated time, and difficulty change

@@ -24,6 +24,7 @@
   const $ = sel => document.querySelector(sel);
 
   let rows = [];
+  let allRows = [];
   let loading = false;
 
   // ---------- helpers ----------
@@ -134,7 +135,7 @@
     const num = v => (v === undefined || v === "" ? null : Number(v));
     return {
       email: (row.email || "").trim().toLowerCase(),
-      sessionId: row.sessionId || `${row.date}|${row.routine}|${(row.submitted || "").slice(0, 13)}`,
+      sessionId: row.sessionId || `${(row.email || "").trim().toLowerCase()}|${row.date}|${row.routine}|${(row.submitted || "").slice(0, 13)}`,
       date: /^\d{4}-\d{2}-\d{2}$/.test(row.date || "") ? row.date : (row.submitted || "").slice(0, 10),
       routine: (row.routine || "").trim(),
       exercise: (row.exercise || "").trim(),
@@ -172,12 +173,9 @@
         throw new Error("The form's questions don't match the workout tracker fields.");
       }
       const responses = await fetchAllResponses(token);
-      const email = WorkoutAuth.user.email.toLowerCase();
-      rows = responses.map(r => toRow(r, questionMap)).filter(r => r.email === email && r.exercise);
-      setStatus(rows.length
-        ? `Loaded ${rows.length} set${rows.length === 1 ? "" : "s"} (all time) logged by ${WorkoutAuth.user.email}.`
-        : `No workouts have been logged by ${WorkoutAuth.user.email} yet.`, rows.length ? "ok" : "");
-      render();
+      allRows = responses.map(r => toRow(r, questionMap)).filter(r => r.exercise);
+      renderUserOptions();
+      applyUser();
     } catch (err) {
       handleLoadError(err, interactive);
     } finally {
@@ -211,6 +209,37 @@
     } else {
       setStatus(err.message || String(err), "error");
     }
+  }
+
+  // ---------- user filter ----------
+  const ALL_USERS = "*";
+
+  function renderUserOptions() {
+    const select = $("#user-select");
+    const previous = select.value;
+    const counts = new Map();
+    allRows.forEach(r => counts.set(r.email, (counts.get(r.email) || 0) + 1));
+    const users = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const me = WorkoutAuth.user.email.toLowerCase();
+    const label = email => email || "(no email)";
+    select.innerHTML = users.map(([email, n]) =>
+      `<option value="${escapeHtml(email)}">${escapeHtml(label(email))}${email === me ? " (you)" : ""} – ${n} set${n === 1 ? "" : "s"}</option>`).join("") +
+      (users.length > 1 ? `<option value="${ALL_USERS}">All users – ${allRows.length} sets</option>` : "");
+    const values = users.map(([email]) => email);
+    if (previous && (values.includes(previous) || (previous === ALL_USERS && users.length > 1))) select.value = previous;
+    else if (values.includes(me)) select.value = me;
+    else if (values.length) select.value = values[0];
+    select.disabled = !users.length;
+  }
+
+  function applyUser() {
+    const selected = $("#user-select").value;
+    rows = selected === ALL_USERS ? allRows : allRows.filter(r => r.email === selected);
+    const who = selected === ALL_USERS ? "all users" : (selected || "(no email)");
+    setStatus(allRows.length
+      ? `Showing ${rows.length} set${rows.length === 1 ? "" : "s"} (all time) logged by ${who}.`
+      : "No workouts have been logged in this form yet.", allRows.length ? "ok" : "");
+    render();
   }
 
   // ---------- aggregation ----------
@@ -460,6 +489,9 @@
   function onSignOut() {
     sessionStorage.removeItem(TOKEN_KEY);
     rows = [];
+    allRows = [];
+    $("#user-select").innerHTML = "";
+    $("#user-select").disabled = true;
     $("#trends-view").hidden = true;
     $("#results").hidden = true;
     $("#fork-help").hidden = true;
@@ -467,7 +499,8 @@
   }
 
   $("#load-data").addEventListener("click", () => loadData(true));
-  $("#range").addEventListener("change", () => rows.length && render());
+  $("#range").addEventListener("change", () => allRows.length && render());
+  $("#user-select").addEventListener("change", applyUser);
   $("#exercise-select").addEventListener("change", renderExerciseTrend);
   $("#metric-select").addEventListener("change", renderExerciseTrend);
   $("#exercises-table").addEventListener("click", event => {
