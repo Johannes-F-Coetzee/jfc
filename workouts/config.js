@@ -10,21 +10,21 @@ window.WORKOUT_CONFIG = {
   // Run createWorkoutConfigurationForm in setup/create-form.gs and replace this block with its output.
   // All tracker users need edit access to this separate form to load shared configurations.
   configurationForm: {
-    formId: "",
-    actionUrl: "",
+    formId: "1TKDkX7yQa2u2PlDVgzomM21kOXZeJ4DWlDd4cxt2qTU",
+    actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLScX-29g_1vBC9AP_9FjnWnLCSv0g02lJVBmCSyaovIV12bzHA/formResponse",
     fields: {
-      email: "",
-      configurationId: "",
-      routine: "",
-      totalSets: "",
-      estimatedSeconds: "",
-      exercise: "",
-      exerciseOrder: "",
-      setNumber: "",
-      measure: "",
-      reps: "",
-      durationSeconds: "",
-      weightKg: ""
+      email: "entry.500493512",
+      configurationId: "entry.478004740",
+      routine: "entry.1945946843",
+      totalSets: "entry.1297113112",
+      estimatedSeconds: "entry.312672126",
+      exercise: "entry.271444766",
+      exerciseOrder: "entry.402679829",
+      setNumber: "entry.2099256338",
+      measure: "entry.96786282",
+      reps: "entry.633409149",
+      durationSeconds: "entry.222802795",
+      weightKg: "entry.1584499751"
     }
   },
 
