@@ -10,7 +10,7 @@
 
   let currentUser = null;
   let googleInitialized = false;
-  let handlers = { onSignIn() {}, onSignOut() {} };
+  let handlers = { onSignIn() { }, onSignOut() { } };
 
   function hasClientId() {
     return typeof CONFIG.googleClientId === "string" && CONFIG.googleClientId.trim() !== "";

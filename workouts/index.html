@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,6 +12,7 @@
   <script src="app.js" defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
+
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
@@ -46,7 +48,8 @@
         </div>
         <div class="row">
           <button type="button" id="load-routine" class="btn ghost small">Load configured routine</button>
-          <button type="button" id="export-routine" class="btn ghost small" title="Download routines.json including this workout as a routine">Export routine (JSON)</button>
+          <button type="button" id="export-routine" class="btn ghost small"
+            title="Download routines.json including this workout as a routine">Export routine (JSON)</button>
           <button type="button" id="clear-workout" class="btn ghost small">Clear</button>
         </div>
 
@@ -61,7 +64,8 @@
 
         <div class="submit-row">
           <button type="submit" id="submit-workout" class="btn primary">Submit workout</button>
-          <span id="estimated-time" class="estimate" title="Timed sets as entered, 10 s per rep, 1 min rest between sets">
+          <span id="estimated-time" class="estimate"
+            title="Timed sets as entered, 10 s per rep, 1 min rest between sets">
             Est. time <strong id="estimated-time-value">0:00</strong>
           </span>
         </div>
@@ -82,12 +86,14 @@
   <template id="exercise-template">
     <article class="exercise" data-measure="reps">
       <div class="exercise-head">
-        <input class="ex-name" placeholder="Exercise (e.g. Push-ups)" list="exercise-names" aria-label="Exercise name" autocomplete="off">
+        <input class="ex-name" placeholder="Exercise (e.g. Push-ups)" list="exercise-names" aria-label="Exercise name"
+          autocomplete="off">
         <select class="ex-measure" aria-label="Measure">
           <option value="reps">Reps</option>
           <option value="time">Time</option>
         </select>
-        <button type="button" class="icon-btn ex-remove" title="Remove exercise" aria-label="Remove exercise">&times;</button>
+        <button type="button" class="icon-btn ex-remove" title="Remove exercise"
+          aria-label="Remove exercise">&times;</button>
       </div>
       <div class="sets"></div>
       <button type="button" class="btn ghost small ex-add-set">+ Add set</button>
@@ -122,4 +128,5 @@
     </div>
   </template>
 </body>
+
 </html>

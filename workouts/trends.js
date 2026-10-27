@@ -212,7 +212,7 @@
     if (err.code === "popup_closed" || err.code === "popup_failed_to_open") {
       setStatus(interactive
         ? "The Google permission window was closed or blocked. Allow pop-ups and press Load my data. " +
-          "If Google said \"Access blocked … has not completed the Google verification process\", add your account as a test user on the site's OAuth consent screen."
+        "If Google said \"Access blocked … has not completed the Google verification process\", add your account as a test user on the site's OAuth consent screen."
         : "Press Load my data to give read access to your workout data.", interactive ? "error" : "");
     } else if (err.code === "access_denied") {
       setStatus("Read access to the form wasn't granted, so trends can't be shown. Press Load my data to try again.", "error");

@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,6 +12,7 @@
   <script src="trends.js" defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
+
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
@@ -55,28 +57,41 @@
           the trends. To track your own workouts, fork the code and set it up with your own Google Form:</p>
         <ol class="steps">
           <li><strong>Fork the repository.</strong> Open
-            <a id="fork-link" href="https://github.com/Johannes-F-Coetzee/jfc.github.io/fork" target="_blank" rel="noopener">the fork page</a>
-            and create a fork in your GitHub account.</li>
+            <a id="fork-link" href="https://github.com/Johannes-F-Coetzee/jfc.github.io/fork" target="_blank"
+              rel="noopener">the fork page</a>
+            and create a fork in your GitHub account.
+          </li>
           <li><strong>Turn on GitHub Pages.</strong> In your fork, open <em>Settings &rarr; Pages</em> and choose
-            <em>Deploy from a branch</em> with the <code>main</code> branch and <code>/ (root)</code> folder. Your site will be at
-            <code>https://&lt;your-user&gt;.github.io/&lt;repo-name&gt;/workouts/</code>.</li>
-          <li><strong>Create your Google Form.</strong> At <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>,
-            create a project, paste in <code>workouts/setup/create-form.gs</code> and run <code>createWorkoutForm</code>.
+            <em>Deploy from a branch</em> with the <code>main</code> branch and <code>/ (root)</code> folder. Your site
+            will be at
+            <code>https://&lt;your-user&gt;.github.io/&lt;repo-name&gt;/workouts/</code>.
+          </li>
+          <li><strong>Create your Google Form.</strong> At <a href="https://script.google.com" target="_blank"
+              rel="noopener">script.google.com</a>,
+            create a project, paste in <code>workouts/setup/create-form.gs</code> and run
+            <code>createWorkoutForm</code>.
             It creates the form and a response spreadsheet, then prints a <code>form: {...}</code> block.</li>
-          <li><strong>Create a Google Cloud project.</strong> In the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>:
+          <li><strong>Create a Google Cloud project.</strong> In the <a href="https://console.cloud.google.com/"
+              target="_blank" rel="noopener">Google Cloud Console</a>:
             <ul>
               <li>Enable the <strong>Google Forms API</strong> under <em>APIs &amp; Services &rarr; Library</em>.</li>
               <li>Set up the <em>OAuth consent screen</em> and add your Google account as a test user.</li>
               <li>Under <em>Credentials</em>, create an <em>OAuth client ID</em> of type <em>Web application</em>. Add
-                <code>https://&lt;your-user&gt;.github.io</code> and, for local testing, <code>http://localhost</code> and
-                <code>http://localhost:8000</code> as <em>Authorized JavaScript origins</em>.</li>
+                <code>https://&lt;your-user&gt;.github.io</code> and, for local testing, <code>http://localhost</code>
+                and
+                <code>http://localhost:8000</code> as <em>Authorized JavaScript origins</em>.
+              </li>
             </ul>
           </li>
-          <li><strong>Update <code>workouts/config.js</code>.</strong> Set <code>googleClientId</code> to your client ID, replace the
-            <code>form</code> block with the one printed in step 3, and optionally set <code>allowedEmails</code>.</li>
-          <li><strong>Add your routines.</strong> Edit <code>workouts/routines.json</code>, or use <em>Export routine (JSON)</em> on the
+          <li><strong>Update <code>workouts/config.js</code>.</strong> Set <code>googleClientId</code> to your client
+            ID, replace the
+            <code>form</code> block with the one printed in step 3, and optionally set <code>allowedEmails</code>.
+          </li>
+          <li><strong>Add your routines.</strong> Edit <code>workouts/routines.json</code>, or use <em>Export routine
+              (JSON)</em> on the
             Log page and commit the downloaded file.</li>
-          <li><strong>Commit and push.</strong> After GitHub Pages redeploys, sign in on your own site to log workouts and view your trends.</li>
+          <li><strong>Commit and push.</strong> After GitHub Pages redeploys, sign in on your own site to log workouts
+            and view your trends.</li>
         </ol>
         <p class="muted">The full guide is in the repository's README.</p>
       </section>
@@ -86,7 +101,9 @@
 
         <section class="card">
           <h2>Routines</h2>
-          <div class="table-wrap"><table id="routines-table"></table></div>
+          <div class="table-wrap">
+            <table id="routines-table"></table>
+          </div>
         </section>
 
         <section class="card">
@@ -100,15 +117,20 @@
             </label>
           </div>
           <div id="chart" class="chart"></div>
-          <div class="table-wrap"><table id="exercise-table"></table></div>
+          <div class="table-wrap">
+            <table id="exercise-table"></table>
+          </div>
         </section>
 
         <section class="card">
           <h2>All exercises</h2>
-          <div class="table-wrap"><table id="exercises-table"></table></div>
+          <div class="table-wrap">
+            <table id="exercises-table"></table>
+          </div>
         </section>
       </div>
     </section>
   </main>
 </body>
+
 </html>

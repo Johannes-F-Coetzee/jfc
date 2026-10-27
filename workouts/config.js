@@ -14,7 +14,7 @@ window.WORKOUT_CONFIG = {
 
     // https://docs.google.com/forms/d/e/<FORM_ID>/formResponse
     actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSekRNtRNtRDK-Uc00wci2ssLaoVX2jwJ0ayfvf0KNkRDV1AwA/formResponse",
-    
+
     // Map of tracker field -> Google Form entry ID ("entry.123456789"). Leave a value empty to skip that field.
     fields: {
       email: "entry.448484238",
