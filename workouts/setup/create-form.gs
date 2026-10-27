@@ -32,11 +32,16 @@ function createWorkoutForm() {
   form.setCollectEmail(false);
   form.setLimitOneResponsePerUser(false);
   form.setAcceptingResponses(true);
+
   try {
     // Only applies to Google Workspace accounts; consumer accounts throw here.
     form.setRequireLogin(false);
-  } catch (e) {}
-  if (typeof form.setPublished === "function") form.setPublished(true);
+  } catch {
+  }
+
+  if (typeof form.setPublished === "function") {
+    form.setPublished(true);
+  }
 
   const items = FIELDS.map(([key, title]) => [key, form.addTextItem().setTitle(title)]);
 
@@ -50,16 +55,13 @@ function createWorkoutForm() {
   const response = form.createResponse();
   items.forEach(([key, item]) => response.withItemResponse(item.createResponse("__" + key + "__")));
   const prefilledUrl = response.toPrefilledUrl();
-
   const fields = {};
   items.forEach(([key]) => {
     const match = prefilledUrl.match(new RegExp("(entry\\.\\d+)=__" + key + "__"));
     fields[key] = match ? match[1] : "";
   });
-
   const actionUrl = form.getPublishedUrl().replace(/\/viewform.*$/, "/formResponse");
   const snippet = "form: " + JSON.stringify({ formId: form.getId(), actionUrl: actionUrl, fields: fields }, null, 2);
-
   Logger.log("Form editor: " + form.getEditUrl());
   Logger.log("Paste into workouts/config.js:\n" + snippet);
 }

@@ -1,24 +1,22 @@
 (() => {
   "use strict";
 
-  const CONFIG = window.WORKOUT_CONFIG || {};
-  const FORM = CONFIG.form || {};
-  const KEYS = {
+  const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
+  const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
+  const STORAGE_KEYS = {
     draft: "workout.draft",
     queue: "workout.queue",
     history: "workout.history"
   };
-  const RPE_LABELS = {
+  const PERCEIVED_EXERTION_LABELS = {
     1: "Very light", 2: "Light", 3: "Light", 4: "Moderate", 5: "Moderate",
     6: "Moderate+", 7: "Hard", 8: "Hard+", 9: "Very hard", 10: "Max effort"
   };
-
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
   let currentUser = null;
   let flushing = false;
-  const ROUTINES_URL = "routines.json";
+  const ROUTINES_FILE_PATH = "routines.json";
   let fileRoutines = new Map();
   let routinesError = "";
 
@@ -26,31 +24,42 @@
   function readJson(storage, key, fallback) {
     try {
       const value = storage.getItem(key);
+
       return value ? JSON.parse(value) : fallback;
     } catch {
       return fallback;
     }
   }
+
   function writeJson(storage, key, value) {
     storage.setItem(key, JSON.stringify(value));
   }
 
   // ---------- configuration checks ----------
   function hasFormConfig() {
-    const fields = FORM.fields || {};
-    return typeof FORM.actionUrl === "string" &&
-      /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(FORM.actionUrl) &&
-      Object.values(fields).some(v => /^entry\.\d+$/.test(v));
+    const fields = FORM_CONFIGURATION.fields || {};
+
+    return typeof FORM_CONFIGURATION.actionUrl === "string" &&
+      /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(FORM_CONFIGURATION.actionUrl) &&
+      Object.values(fields).some(entryId => /^entry\.\d+$/.test(entryId));
   }
 
   function showSetupWarnings() {
     const problems = [];
-    if (!WorkoutAuth.hasClientId()) problems.push("<code>googleClientId</code> is not set - Google sign-in is disabled.");
-    if (!hasFormConfig()) problems.push("The Google Form <code>actionUrl</code> / entry IDs are not set - workouts cannot be submitted.");
+
+    if (!WorkoutAuth.hasConfiguredGoogleClientIdentifier()) {
+      problems.push("<code>googleClientId</code> is not set - Google sign-in is disabled.");
+    }
+
+    if (!hasFormConfig()) {
+      problems.push("The Google Form <code>actionUrl</code> / entry IDs are not set - workouts cannot be submitted.");
+    }
+
     const box = $("#setup-warning");
+
     if (problems.length) {
       box.innerHTML = "<strong>Setup required</strong> (edit <code>workouts/config.js</code>):<ul>" +
-        problems.map(p => `<li>${p}</li>`).join("") + "</ul>";
+        problems.map(problem => `<li>${problem}</li>`).join("") + "</ul>";
       box.hidden = false;
     }
   }
@@ -74,86 +83,108 @@
   // ---------- duration helpers ----------
   function parseDuration(text) {
     const value = String(text || "").trim();
-    if (!value) return null;
-    if (/^\d+$/.test(value)) return parseInt(value, 10);
+
+    if (!value) {
+      return null;
+    }
+
+    if (/^\d+$/.test(value)) {
+      return parseInt(value, 10);
+    }
+
     const match = value.match(/^(?:(\d+):)?(\d+):(\d{1,2})$/);
-    if (!match) return NaN;
-    const [, h, m, s] = match;
-    return (parseInt(h || "0", 10) * 3600) + parseInt(m, 10) * 60 + parseInt(s, 10);
+
+    if (!match) {
+      return NaN;
+    }
+
+    const [, hour, minute, second] = match;
+
+    return (parseInt(hour || "0", 10) * 3600) + parseInt(minute, 10) * 60 + parseInt(second, 10);
   }
+
   function formatDuration(seconds) {
-    if (seconds == null || isNaN(seconds)) return "";
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${String(s).padStart(2, "0")}`;
+    if (seconds == null || isNaN(seconds)) {
+      return "";
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    const secondsRemaining = seconds % 60;
+
+    return `${minutes}:${String(secondsRemaining).padStart(2, "0")}`;
   }
 
   // ---------- workout DOM ----------
   function todayIso() {
-    const d = new Date();
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    const date = new Date();
+
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
-  function updateRpeLabel(setEl) {
-    const value = $(".set-rpe", setEl).value;
-    $(".rpe-out", setEl).textContent = `${value} · ${RPE_LABELS[value]}`;
+  function updatePerceivedExertionLabel(setElement) {
+    const value = $(".set-rpe", setElement).value;
+    $(".rpe-out", setElement).textContent = `${value} · ${PERCEIVED_EXERTION_LABELS[value]}`;
   }
 
-  function renumberSets(exerciseEl) {
-    $$(".set", exerciseEl).forEach((setEl, i) => {
-      $(".set-no", setEl).textContent = i + 1;
+  function renumberSets(exerciseElement) {
+    $$(".set", exerciseElement).forEach((setElement, setIndex) => {
+      $(".set-no", setElement).textContent = setIndex + 1;
     });
   }
 
-  function addSet(exerciseEl, data = {}) {
-    const setEl = $("#set-template").content.firstElementChild.cloneNode(true);
-    $(".set-reps", setEl).value = data.reps ?? "";
-    $(".set-time", setEl).value = data.durationSeconds != null ? formatDuration(data.durationSeconds) : "";
-    $(".set-weight", setEl).value = data.weightKg ?? "";
-    $(".set-rpe", setEl).value = data.rpe ?? 5;
-    $(".set-notes", setEl).value = data.notes ?? "";
-    updateRpeLabel(setEl);
-    $(".sets", exerciseEl).appendChild(setEl);
-    renumberSets(exerciseEl);
-    return setEl;
+  function addSet(exerciseElement, data = {}) {
+    const setElement = $("#set-template").content.firstElementChild.cloneNode(true);
+    $(".set-reps", setElement).value = data.reps ?? "";
+    $(".set-time", setElement).value = data.durationSeconds != null ? formatDuration(data.durationSeconds) : "";
+    $(".set-weight", setElement).value = data.weightKg ?? "";
+    $(".set-rpe", setElement).value = data.rpe ?? 5;
+    $(".set-notes", setElement).value = data.notes ?? "";
+    updatePerceivedExertionLabel(setElement);
+    $(".sets", exerciseElement).appendChild(setElement);
+    renumberSets(exerciseElement);
+
+    return setElement;
   }
 
   function addExercise(data = {}) {
-    const exEl = $("#exercise-template").content.firstElementChild.cloneNode(true);
-    $(".ex-name", exEl).value = data.name ?? "";
+    const exerciseElement = $("#exercise-template").content.firstElementChild.cloneNode(true);
+    $(".ex-name", exerciseElement).value = data.name ?? "";
     const measure = data.measure === "time" ? "time" : "reps";
-    $(".ex-measure", exEl).value = measure;
-    exEl.dataset.measure = measure;
-    const sets = data.sets && data.sets.length ? data.sets : [{}];
-    sets.forEach(s => addSet(exEl, s));
-    $("#exercises").appendChild(exEl);
-    return exEl;
+    $(".ex-measure", exerciseElement).value = measure;
+    exerciseElement.dataset.measure = measure;
+    const workoutSets = data.sets && data.sets.length ? data.sets : [{}];
+    workoutSets.forEach(setData => addSet(exerciseElement, setData));
+    $("#exercises").appendChild(exerciseElement);
+
+    return exerciseElement;
   }
 
-  function stopTimer(setEl) {
-    if (setEl._timer) {
-      clearInterval(setEl._timer);
-      setEl._timer = null;
-      const btn = $(".set-timer", setEl);
-      btn.innerHTML = "&#9654;";
-      btn.classList.remove("running");
+  function stopTimer(setElement) {
+    if (setElement._timer) {
+      clearInterval(setElement._timer);
+      setElement._timer = null;
+      const button = $(".set-timer", setElement);
+      button.innerHTML = "&#9654;";
+      button.classList.remove("running");
       saveDraft();
     }
   }
 
-  function toggleTimer(setEl) {
-    if (setEl._timer) {
-      stopTimer(setEl);
+  function toggleTimer(setElement) {
+    if (setElement._timer) {
+      stopTimer(setElement);
+
       return;
     }
+
     $$(".set").forEach(stopTimer);
-    const input = $(".set-time", setEl);
+    const input = $(".set-time", setElement);
     const base = parseDuration(input.value) || 0;
     const start = Date.now();
-    const btn = $(".set-timer", setEl);
-    btn.innerHTML = "&#9632;";
-    btn.classList.add("running");
-    setEl._timer = setInterval(() => {
+    const button = $(".set-timer", setElement);
+    button.innerHTML = "&#9632;";
+    button.classList.add("running");
+    setElement._timer = setInterval(() => {
       input.value = formatDuration(base + Math.floor((Date.now() - start) / 1000));
       updateEstimate();
     }, 250);
@@ -164,20 +195,22 @@
       date: $("#workout-date").value,
       routine: $("#routine-name").value.trim(),
       sessionNotes: $("#session-notes").value.trim(),
-      exercises: $$("#exercises .exercise").map(exEl => {
-        const measure = $(".ex-measure", exEl).value;
+      exercises: $$("#exercises .exercise").map(exerciseElement => {
+        const measure = $(".ex-measure", exerciseElement).value;
+
         return {
-          name: $(".ex-name", exEl).value.trim(),
+          name: $(".ex-name", exerciseElement).value.trim(),
           measure,
-          sets: $$(".set", exEl).map(setEl => {
-            const reps = $(".set-reps", setEl).value;
-            const weight = $(".set-weight", setEl).value;
+          sets: $$(".set", exerciseElement).map(setElement => {
+            const repetitionCount = $(".set-reps", setElement).value;
+            const weight = $(".set-weight", setElement).value;
+
             return {
-              reps: measure === "reps" && reps !== "" ? Number(reps) : null,
-              durationSeconds: measure === "time" ? parseDuration($(".set-time", setEl).value) : null,
+              reps: measure === "reps" && repetitionCount !== "" ? Number(repetitionCount) : null,
+              durationSeconds: measure === "time" ? parseDuration($(".set-time", setElement).value) : null,
               weightKg: weight !== "" ? Number(weight) : null,
-              rpe: Number($(".set-rpe", setEl).value),
-              notes: $(".set-notes", setEl).value.trim()
+              rpe: Number($(".set-rpe", setElement).value),
+              notes: $(".set-notes", setElement).value.trim()
             };
           })
         };
@@ -198,30 +231,38 @@
 
   // ---------- drafts & routines ----------
   let draftTimer = null;
+
   function saveDraft() {
     updateEstimate();
     clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => writeJson(localStorage, KEYS.draft, collectWorkout()), 300);
+    draftTimer = setTimeout(() => writeJson(localStorage, STORAGE_KEYS.draft, collectWorkout()), 300);
   }
 
   // Timed sets count as entered, each rep counts 10 s, plus 1 min rest between consecutive sets.
-  const SECONDS_PER_REP = 10;
-  const REST_BETWEEN_SETS = 60;
+  const SECONDS_PER_REPETITION = 10;
+  const REST_SECONDS_BETWEEN_SETS = 60;
+
   function estimateSeconds(workout) {
     let work = 0;
     let sets = 0;
-    workout.exercises.forEach(ex => ex.sets.forEach(s => {
+    workout.exercises.forEach(exercise => exercise.sets.forEach(workoutSet => {
       sets += 1;
-      if (ex.measure === "time") work += Number.isFinite(s.durationSeconds) ? s.durationSeconds : 0;
-      else work += Number.isFinite(s.reps) ? s.reps * SECONDS_PER_REP : 0;
+
+      if (exercise.measure === "time") {
+        work += Number.isFinite(workoutSet.durationSeconds) ? workoutSet.durationSeconds : 0;
+      } else {
+        work += Number.isFinite(workoutSet.reps) ? workoutSet.reps * SECONDS_PER_REPETITION : 0;
+      }
     }));
-    return work + Math.max(0, sets - 1) * REST_BETWEEN_SETS;
+
+    return work + Math.max(0, sets - 1) * REST_SECONDS_BETWEEN_SETS;
   }
 
   function formatEstimate(seconds) {
-    const h = Math.floor(seconds / 3600);
+    const hours = Math.floor(seconds / 3600);
     const rest = formatDuration(seconds % 3600);
-    return h ? `${h}:${rest.padStart(5, "0")}` : rest;
+
+    return hours ? `${hours}:${rest.padStart(5, "0")}` : rest;
   }
 
   function updateEstimate() {
@@ -230,15 +271,25 @@
 
   function routineTemplate(workout) {
     return workout.exercises
-      .filter(ex => ex.name)
-      .map(ex => ({
-        name: ex.name,
-        measure: ex.measure,
-        sets: ex.sets.map(s => {
+      .filter(exercise => exercise.name)
+      .map(exercise => ({
+        name: exercise.name,
+        measure: exercise.measure,
+        sets: exercise.sets.map(workoutSet => {
           const set = {};
-          if (ex.measure === "reps" && Number.isFinite(s.reps)) set.reps = s.reps;
-          if (ex.measure === "time" && Number.isFinite(s.durationSeconds)) set.durationSeconds = s.durationSeconds;
-          if (Number.isFinite(s.weightKg)) set.weightKg = s.weightKg;
+
+          if (exercise.measure === "reps" && Number.isFinite(workoutSet.reps)) {
+            set.reps = workoutSet.reps;
+          }
+
+          if (exercise.measure === "time" && Number.isFinite(workoutSet.durationSeconds)) {
+            set.durationSeconds = workoutSet.durationSeconds;
+          }
+
+          if (Number.isFinite(workoutSet.weightKg)) {
+            set.weightKg = workoutSet.weightKg;
+          }
+
           return set;
         })
       }));
@@ -246,55 +297,78 @@
 
   // Accepts loosely-typed JSON from routines.json and returns a clean { name, exercises } or null.
   function normalizeRoutine(raw) {
-    if (!raw || typeof raw.name !== "string" || !raw.name.trim() || !Array.isArray(raw.exercises)) return null;
-    const num = v => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+    if (!raw || typeof raw.name !== "string" || !raw.name.trim() || !Array.isArray(raw.exercises)) {
+      return null;
+    }
+
+    const numberOrNull = value => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null);
     const exercises = raw.exercises
-      .filter(ex => ex && typeof ex.name === "string" && ex.name.trim())
-      .map(ex => ({
-        name: ex.name.trim(),
-        measure: ex.measure === "time" ? "time" : "reps",
-        sets: (Array.isArray(ex.sets) && ex.sets.length ? ex.sets : [{}]).map(s => ({
-          reps: num(s?.reps),
-          durationSeconds: num(s?.durationSeconds),
-          weightKg: num(s?.weightKg)
+      .filter(exercise => exercise && typeof exercise.name === "string" && exercise.name.trim())
+      .map(exercise => ({
+        name: exercise.name.trim(),
+        measure: exercise.measure === "time" ? "time" : "reps",
+        sets: (Array.isArray(exercise.sets) && exercise.sets.length ? exercise.sets : [{}]).map(setData => ({
+          reps: numberOrNull(setData?.reps),
+          durationSeconds: numberOrNull(setData?.durationSeconds),
+          weightKg: numberOrNull(setData?.weightKg)
         }))
       }));
+
     return exercises.length ? { name: raw.name.trim(), exercises } : null;
   }
 
   async function loadRoutinesFile() {
     try {
-      const response = await fetch(ROUTINES_URL, { cache: "no-cache" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const response = await fetch(ROUTINES_FILE_PATH, { cache: "no-cache" });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
       const data = await response.json();
       const list = Array.isArray(data) ? data : data.routines;
-      if (!Array.isArray(list)) throw new Error("missing \"routines\" array");
+
+      if (!Array.isArray(list)) {
+        throw new Error("missing \"routines\" array");
+      }
+
       fileRoutines = new Map();
-      list.map(normalizeRoutine).filter(Boolean).forEach(r => fileRoutines.set(r.name, r));
+      list.map(normalizeRoutine).filter(Boolean).forEach(routine => fileRoutines.set(routine.name, routine));
       routinesError = "";
-    } catch (err) {
+    } catch (error) {
       fileRoutines = new Map();
-      routinesError = `Could not load ${ROUTINES_URL}: ${err.message}`;
+      routinesError = `Could not load ${ROUTINES_FILE_PATH}: ${error.message}`;
     }
     refreshRoutineList();
     refreshExerciseNames();
   }
 
   function findRoutine(name) {
-    if (fileRoutines.has(name)) return fileRoutines.get(name);
+    if (fileRoutines.has(name)) {
+      return fileRoutines.get(name);
+    }
+
     const lower = name.toLowerCase();
-    return [...fileRoutines.values()].find(r => r.name.toLowerCase() === lower) || null;
+
+    return [...fileRoutines.values()].find(routine => routine.name.toLowerCase() === lower) || null;
   }
 
   function refreshRoutineList() {
     $("#routine-list").innerHTML = [...fileRoutines.keys()].sort()
-      .map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
+      .map(routineName => `<option value="${escapeMarkup(routineName)}"></option>`).join("");
   }
 
   function exportRoutines(typedName, workout) {
     const exercises = routineTemplate(workout);
-    if (!exercises.length) return false;
-    const merged = new Map([...fileRoutines].map(([key, r]) => [key, { name: r.name, exercises: routineTemplate(r) }]));
+
+    if (!exercises.length) {
+      return false;
+    }
+
+    const merged = new Map([...fileRoutines].map(([routineKey, routine]) => [
+      routineKey,
+      { name: routine.name, exercises: routineTemplate(routine) }
+    ]));
     const name = findRoutine(typedName)?.name || typedName;
     merged.set(name, { name, exercises });
     const json = JSON.stringify({ routines: [...merged.values()] }, null, 2) + "\n";
@@ -306,31 +380,38 @@
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+
     return true;
   }
 
   function refreshExerciseNames() {
     const names = new Set();
-    fileRoutines.forEach(r => r.exercises.forEach(ex => names.add(ex.name)));
+    fileRoutines.forEach(routine => routine.exercises.forEach(exercise => names.add(exercise.name)));
     $$("#exercises .ex-name").forEach(input => input.value.trim() && names.add(input.value.trim()));
     $("#exercise-names").innerHTML = [...names].sort()
-      .map(n => `<option value="${escapeHtml(n)}"></option>`).join("");
+      .map(exerciseName => `<option value="${escapeMarkup(exerciseName)}"></option>`).join("");
   }
 
-  function escapeHtml(text) {
-    return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function escapeMarkup(text) {
+    return String(text).replace(/[&<>"']/g, character =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   }
 
   // ---------- status ----------
   function setStatus(message, kind = "") {
-    const el = $("#status");
-    el.textContent = message;
-    el.className = `status ${kind}`;
+    const element = $("#status");
+    element.textContent = message;
+    element.className = `status ${kind}`;
   }
 
   // ---------- Google Forms submission ----------
-  function readQueue() { return readJson(localStorage, KEYS.queue, []); }
-  function writeQueue(queue) { writeJson(localStorage, KEYS.queue, queue); }
+  function readQueue() {
+    return readJson(localStorage, STORAGE_KEYS.queue, []);
+  }
+
+  function writeQueue(queue) {
+    writeJson(localStorage, STORAGE_KEYS.queue, queue);
+  }
 
   function updateQueueUi() {
     const count = readQueue().length;
@@ -339,33 +420,51 @@
   }
 
   async function postToForm(row) {
-    if (!currentUser) throw new Error("Sign in before submitting workout data.");
-    const body = new URLSearchParams();
-    for (const [key, entry] of Object.entries(FORM.fields || {})) {
-      const value = row[key];
-      if (entry && value !== null && value !== undefined && value !== "") body.append(entry, String(value));
+    if (!currentUser) {
+      throw new Error("Sign in before submitting workout data.");
     }
+
+    const body = new URLSearchParams();
+
+    for (const [key, entry] of Object.entries(FORM_CONFIGURATION.fields || {})) {
+      const value = row[key];
+
+      if (entry && value !== null && value !== undefined && value !== "") {
+        body.append(entry, String(value));
+      }
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
+
     try {
       // Google Forms does not send CORS headers, so the response is opaque; only network failures are detectable.
-      await fetch(FORM.actionUrl, { method: "POST", mode: "no-cors", body, signal: controller.signal });
+      await fetch(FORM_CONFIGURATION.actionUrl, { method: "POST", mode: "no-cors", body, signal: controller.signal });
     } finally {
       clearTimeout(timeout);
     }
   }
 
   async function flushQueue() {
-    if (!currentUser) return false;
-    if (flushing || !hasFormConfig()) return readQueue().length === 0;
+    if (!currentUser) {
+      return false;
+    }
+
+    if (flushing || !hasFormConfig()) {
+      return readQueue().length === 0;
+    }
+
     flushing = true;
+
     try {
       let next;
+
       while ((next = readQueue()[0])) {
         await postToForm(next);
-        writeQueue(readQueue().filter(r => r.id !== next.id));
+        writeQueue(readQueue().filter(queueRow => queueRow.id !== next.id));
         updateQueueUi();
       }
+
       return true;
     } catch {
       return false;
@@ -378,18 +477,18 @@
   function buildRows(workout) {
     const sessionId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
     const rows = [];
-    workout.exercises.forEach((ex, exIndex) => {
-      ex.sets.forEach((set, setIndex) => {
+    workout.exercises.forEach((exercise, exerciseIndex) => {
+      exercise.sets.forEach((set, setIndex) => {
         rows.push({
-          id: `${sessionId}:${exIndex}:${setIndex}`,
+          id: `${sessionId}:${exerciseIndex}:${setIndex}`,
           email: currentUser.email,
           sessionId,
           date: workout.date,
           routine: workout.routine,
-          exercise: ex.name,
-          exerciseOrder: exIndex + 1,
+          exercise: exercise.name,
+          exerciseOrder: exerciseIndex + 1,
           setNumber: setIndex + 1,
-          measure: ex.measure,
+          measure: exercise.measure,
           reps: set.reps,
           durationSeconds: set.durationSeconds,
           weightKg: set.weightKg,
@@ -399,59 +498,78 @@
         });
       });
     });
+
     return { sessionId, rows };
   }
 
   function validate(workout) {
-    if (!workout.date) return "Please choose a date.";
-    if (!workout.exercises.length) return "Add at least one exercise.";
-    for (const [i, ex] of workout.exercises.entries()) {
-      if (!ex.name) return `Exercise ${i + 1} needs a name.`;
-      if (!ex.sets.length) return `${ex.name} has no sets.`;
-      for (const [j, s] of ex.sets.entries()) {
-        if (ex.measure === "reps" && (s.reps === null || !Number.isFinite(s.reps) || s.reps < 0)) {
-          return `${ex.name}, set ${j + 1}: enter the number of reps.`;
+    if (!workout.date) {
+      return "Please choose a date.";
+    }
+
+    if (!workout.exercises.length) {
+      return "Add at least one exercise.";
+    }
+
+    for (const [exerciseIndex, exercise] of workout.exercises.entries()) {
+      if (!exercise.name) {
+        return `Exercise ${exerciseIndex + 1} needs a name.`;
+      }
+
+      if (!exercise.sets.length) {
+        return `${exercise.name} has no sets.`;
+      }
+
+      for (const [setIndex, set] of exercise.sets.entries()) {
+        if (exercise.measure === "reps" && (set.reps === null || !Number.isFinite(set.reps) || set.reps < 0)) {
+          return `${exercise.name}, set ${setIndex + 1}: enter the number of reps.`;
         }
-        if (ex.measure === "time" && (s.durationSeconds === null || Number.isNaN(s.durationSeconds))) {
-          return `${ex.name}, set ${j + 1}: enter a time such as 0:45 or 45.`;
+
+        if (exercise.measure === "time" && (set.durationSeconds === null || Number.isNaN(set.durationSeconds))) {
+          return `${exercise.name}, set ${setIndex + 1}: enter a time such as 0:45 or 45.`;
         }
       }
     }
+
     return null;
   }
 
   async function submitWorkout(event) {
     event.preventDefault();
-    if (!currentUser) return;
+
+    if (!currentUser) {
+      return;
+    }
+
     $$(".set").forEach(stopTimer);
     const workout = collectWorkout();
     const error = validate(workout);
+
     if (error) {
       setStatus(error, "error");
+
       return;
     }
+
     const { sessionId, rows } = buildRows(workout);
     writeQueue(readQueue().concat(rows));
     updateQueueUi();
-
-    const history = readJson(localStorage, KEYS.history, []);
-    const rpes = rows.map(r => r.rpe);
+    const history = readJson(localStorage, STORAGE_KEYS.history, []);
+    const perceivedExertionValues = rows.map(row => row.rpe);
     history.unshift({
       sessionId,
       date: workout.date,
       routine: workout.routine,
-      exercises: workout.exercises.map(ex => `${ex.name} ×${ex.sets.length}`),
-      avgRpe: Math.round((rpes.reduce((a, b) => a + b, 0) / rpes.length) * 10) / 10
+      exercises: workout.exercises.map(exercise => `${exercise.name} ×${exercise.sets.length}`),
+      avgRpe: Math.round((perceivedExertionValues.reduce((total, value) => total + value, 0) / perceivedExertionValues.length) * 10) / 10
     });
-    writeJson(localStorage, KEYS.history, history.slice(0, 20));
-
+    writeJson(localStorage, STORAGE_KEYS.history, history.slice(0, 20));
     $("#submit-workout").disabled = true;
     setStatus("Sending…");
     const sent = await flushQueue();
     $("#submit-workout").disabled = false;
-
     renderWorkout({ routine: workout.routine, exercises: routineTemplate(workout) });
-    localStorage.removeItem(KEYS.draft);
+    localStorage.removeItem(STORAGE_KEYS.draft);
     renderHistory();
     setStatus(sent
       ? `Workout saved (${rows.length} set${rows.length === 1 ? "" : "s"}).`
@@ -460,11 +578,11 @@
   }
 
   function renderHistory() {
-    const history = readJson(localStorage, KEYS.history, []);
+    const history = readJson(localStorage, STORAGE_KEYS.history, []);
     $("#history").innerHTML = history.length
-      ? history.map(h => `<li><strong>${escapeHtml(h.date)}</strong> ${escapeHtml(h.routine || "Workout")}
-          <span class="muted">· avg difficulty ${h.avgRpe}</span><br>
-          <span class="muted">${h.exercises.map(escapeHtml).join(", ")}</span></li>`).join("")
+      ? history.map(workout => `<li><strong>${escapeMarkup(workout.date)}</strong> ${escapeMarkup(workout.routine || "Workout")}
+          <span class="muted">· avg difficulty ${workout.avgRpe}</span><br>
+          <span class="muted">${workout.exercises.map(escapeMarkup).join(", ")}</span></li>`).join("")
       : `<li class="muted">No workouts logged yet.</li>`;
   }
 
@@ -473,71 +591,103 @@
     const form = $("#workout-form");
     form.addEventListener("submit", submitWorkout);
     form.addEventListener("input", event => {
-      if (event.target.classList.contains("set-rpe")) updateRpeLabel(event.target.closest(".set"));
+      if (event.target.classList.contains("set-rpe")) {
+        updatePerceivedExertionLabel(event.target.closest(".set"));
+      }
+
       saveDraft();
     });
     form.addEventListener("change", event => {
       const target = event.target;
+
       if (target.classList.contains("ex-measure")) {
         target.closest(".exercise").dataset.measure = target.value;
       }
+
       if (target.classList.contains("set-time")) {
         const seconds = parseDuration(target.value);
-        if (seconds !== null && !Number.isNaN(seconds)) target.value = formatDuration(seconds);
+
+        if (seconds !== null && !Number.isNaN(seconds)) {
+          target.value = formatDuration(seconds);
+        }
       }
-      if (target.classList.contains("ex-name")) refreshExerciseNames();
+
+      if (target.classList.contains("ex-name")) {
+        refreshExerciseNames();
+      }
+
       saveDraft();
     });
     form.addEventListener("click", event => {
-      const btn = event.target.closest("button");
-      if (!btn) return;
-      const exEl = btn.closest(".exercise");
-      const setEl = btn.closest(".set");
-      if (btn.classList.contains("ex-add-set")) {
-        const sets = collectWorkout().exercises[$$("#exercises .exercise").indexOf(exEl)].sets;
-        const last = sets[sets.length - 1] || {};
-        addSet(exEl, { ...last, notes: "" });
-      } else if (btn.classList.contains("set-remove")) {
-        stopTimer(setEl);
-        if ($$(".set", exEl).length > 1) {
-          setEl.remove();
-          renumberSets(exEl);
+      const button = event.target.closest("button");
+
+      if (!button) {
+        return;
+      }
+
+      const exerciseElement = button.closest(".exercise");
+      const setElement = button.closest(".set");
+
+      if (button.classList.contains("ex-add-set")) {
+        const workoutSets = collectWorkout().exercises[$$("#exercises .exercise").indexOf(exerciseElement)].sets;
+        const lastSet = workoutSets[workoutSets.length - 1] || {};
+        addSet(exerciseElement, { ...lastSet, notes: "" });
+      } else if (button.classList.contains("set-remove")) {
+        stopTimer(setElement);
+
+        if ($$(".set", exerciseElement).length > 1) {
+          setElement.remove();
+          renumberSets(exerciseElement);
         }
-      } else if (btn.classList.contains("ex-remove")) {
-        $$(".set", exEl).forEach(stopTimer);
-        exEl.remove();
-        if (!$$("#exercises .exercise").length) addExercise();
-      } else if (btn.classList.contains("set-timer")) {
-        toggleTimer(setEl);
+      } else if (button.classList.contains("ex-remove")) {
+        $$(".set", exerciseElement).forEach(stopTimer);
+        exerciseElement.remove();
+
+        if (!$$("#exercises .exercise").length) {
+          addExercise();
+        }
+      } else if (button.classList.contains("set-timer")) {
+        toggleTimer(setElement);
+
         return;
       } else {
         return;
       }
+
       saveDraft();
     });
 
     $("#add-exercise").addEventListener("click", () => {
-      const exEl = addExercise();
-      $(".ex-name", exEl).focus();
+      const exerciseElement = addExercise();
+      $(".ex-name", exerciseElement).focus();
       saveDraft();
     });
 
     $("#load-routine").addEventListener("click", async () => {
       const name = $("#routine-name").value.trim();
+
       if (!name) {
         setStatus("Type or pick a routine name first.", "error");
+
         return;
       }
+
       await loadRoutinesFile();
+
       if (routinesError) {
         setStatus(routinesError, "error");
+
         return;
       }
+
       const routine = findRoutine(name);
+
       if (!routine) {
         setStatus(`No routine called "${name}" in routines.json.`, "error");
+
         return;
       }
+
       renderWorkout({ date: $("#workout-date").value, routine: routine.name, exercises: routine.exercises });
       saveDraft();
       setStatus(`Loaded routine "${routine.name}".`, "ok");
@@ -545,10 +695,13 @@
 
     $("#export-routine").addEventListener("click", () => {
       const name = $("#routine-name").value.trim();
+
       if (!name) {
         setStatus("Enter a routine name first.", "error");
+
         return;
       }
+
       const exported = exportRoutines(name, collectWorkout());
       setStatus(exported
         ? `Exported routines.json with "${name}". Replace workouts/routines.json in the repo with it to publish.`
@@ -556,9 +709,12 @@
     });
 
     $("#clear-workout").addEventListener("click", () => {
-      if (!confirm("Clear the current workout?")) return;
+      if (!confirm("Clear the current workout?")) {
+        return;
+      }
+
       renderWorkout({});
-      localStorage.removeItem(KEYS.draft);
+      localStorage.removeItem(STORAGE_KEYS.draft);
       setStatus("");
     });
 
@@ -575,7 +731,7 @@
   function boot() {
     showSetupWarnings();
     wireEvents();
-    renderWorkout(readJson(localStorage, KEYS.draft, {}));
+    renderWorkout(readJson(localStorage, STORAGE_KEYS.draft, {}));
     loadRoutinesFile();
     WorkoutAuth.init({ onSignIn: showTracker, onSignOut: hideTracker });
   }
