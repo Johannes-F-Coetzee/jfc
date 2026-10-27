@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Workout Tracker</title>
+  <title>Fitness Tracker</title>
   <link rel="icon" href="excersise_favicon.svg" type="image/svg+xml">
   <script src="settings.js"></script>
   <link rel="stylesheet" href="styles.css">
@@ -19,8 +19,8 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
-    <h1>Workout Tracker</h1>
-    <nav class="nav"><a href="./" aria-current="page">Log</a><a href="trends.html">Trends</a></nav>
+    <h1>Fitness Tracker</h1>
+    <nav class="nav"><a href="./">Log</a><a href="trends.html">Trends</a><a href="measurements.html">Measurements</a></nav>
     <details id="settings-menu" class="settings-menu">
       <summary class="btn ghost small">Settings</summary>
       <div class="settings-panel card">
@@ -52,7 +52,7 @@
           </select>
         </label>
         <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved configurations keep their measure.</p>
-        <p class="muted">Settings are remembered on this device across Log and Trends.</p>
+        <p class="muted">Settings are remembered on this device across Log, Trends, and Measurements.</p>
         <p id="settings-status" class="status" role="status" aria-live="polite"></p>
       </div>
     </details>

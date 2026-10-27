@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fitness Measurements</title>
+  <link rel="icon" href="excersise_favicon.svg" type="image/svg+xml">
+  <script src="settings.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="auth.js" defer></script>
+  <script src="google-forms.js" defer></script>
+  <script src="measurements.js" defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="brand" href="../">&larr; Home</a>
+    <h1>Fitness Measurements</h1>
+    <nav class="nav"><a href="./">Log</a><a href="trends.html">Trends</a><a href="measurements.html" aria-current="page">Measurements</a></nav>
+    <details id="settings-menu" class="settings-menu">
+      <summary class="btn ghost small">Settings</summary>
+      <div class="settings-panel card">
+        <h2>Settings</h2>
+        <label class="field" for="theme-select">Theme
+          <select id="theme-select">
+            <optgroup label="Dark">
+              <option value="dark-red">Dark Red</option>
+              <option value="dark-green">Dark Green</option>
+              <option value="dark-blue">Dark Blue</option>
+            </optgroup>
+            <optgroup label="Light">
+              <option value="light-red">Light Red</option>
+              <option value="light-green">Light Green</option>
+              <option value="light-blue">Light Blue</option>
+            </optgroup>
+          </select>
+        </label>
+        <label class="field" for="units-select">Units
+          <select id="units-select">
+            <option value="metric">Metric (kg)</option>
+            <option value="imperial">Imperial (lb)</option>
+          </select>
+        </label>
+        <label class="field" for="default-measure-select">Default exercise measure
+          <select id="default-measure-select" aria-describedby="default-measure-help">
+            <option value="reps">Reps</option>
+            <option value="time">Time</option>
+          </select>
+        </label>
+        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved configurations keep their measure.</p>
+        <p class="muted">Settings are remembered on this device across tracker pages.</p>
+        <p id="settings-status" class="status" role="status" aria-live="polite"></p>
+      </div>
+    </details>
+    <div id="user-box" class="user-box" hidden>
+      <img id="user-avatar" alt="" referrerpolicy="no-referrer">
+      <span id="user-name"></span>
+      <button type="button" id="sign-out" class="btn ghost small">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="setup-warning" class="card warning" hidden>
+      <strong>Measurements form setup required</strong>
+      <p>Run <code>createMeasurementsForm</code> in <code>workouts/setup/create-form.gs</code>,
+        then paste the logged <code>measurementsForm</code> block into <code>workouts/config.js</code>.
+        Publish the form and allow anonymous responses. All field mappings are required before submitting.</p>
+    </section>
+    <section id="login-view" class="card center">
+      <h2>Sign in</h2>
+      <p>Sign in with your Google account to track your measurements and daily states.</p>
+      <div id="google-signin-button"></div>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="measurements-view" hidden>
+      <form id="measurement-form" class="card">
+        <h2>Daily measurements and states</h2>
+        <p class="muted">Each submission sends one response to the measurements Google Form. A daily history
+          and pending submissions are kept on this device for your signed-in account. Resubmitting a date
+          adds a new response in Google Forms; it does not edit an earlier response.</p>
+        <label class="field" for="measurement-date">Date
+          <input type="date" id="measurement-date" required>
+        </label>
+        <div id="measurement-fields" class="measurement-fields"></div>
+        <div class="row">
+          <button type="submit" id="submit-measurements" class="btn primary">Submit measurements</button>
+          <button type="button" id="clear-measurements" class="btn ghost">Clear fields</button>
+        </div>
+        <p id="measurement-status" class="status" role="status" aria-live="polite"></p>
+        <div id="measurement-queue" class="queue" hidden>
+          <span id="measurement-queue-text"></span>
+          <button type="button" id="retry-measurements" class="btn ghost small">Retry now</button>
+        </div>
+      </form>
+
+      <section class="card">
+        <h2>Measurement history <small>(this device)</small></h2>
+        <ul id="measurement-history" class="history"></ul>
+      </section>
+    </section>
+  </main>
+</body>
+
+</html>

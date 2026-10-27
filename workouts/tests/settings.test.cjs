@@ -150,8 +150,8 @@ test("Escape closes settings and restores focus; outside clicks dismiss it", () 
   assert.equal(environment.menu.open, false);
 });
 
-test("both pages load settings before styles and offer all six themes", () => {
-  for (const filename of ["index.html", "trends.html"]) {
+test("all pages load settings before styles and offer all six themes", () => {
+  for (const filename of ["index.html", "trends.html", "measurements.html"]) {
     const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
     assert.ok(html.indexOf('src="settings.js"') < html.indexOf('href="styles.css"'));
     assert.match(html, /<details id="settings-menu"/);

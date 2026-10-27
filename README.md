@@ -5,10 +5,11 @@ Static GitHub Pages site.
 | Page | Path |
 |------|------|
 | Home | [`index.html`](index.html) |
-| Workout tracker | [`workouts/`](workouts/) |
-| Workout trends | [`workouts/trends.html`](workouts/trends.html) |
+| Fitness tracker | [`workouts/`](workouts/) |
+| Fitness trends | [`workouts/trends.html`](workouts/trends.html) |
+| Fitness Measurements | [`workouts/measurements.html`](workouts/measurements.html) |
 
-## Workout tracker
+## Fitness tracker
 
 `workouts/` is a mobile-friendly page for logging an exercise routine:
 
@@ -19,8 +20,8 @@ Static GitHub Pages site.
 - **Export configurations (JSON)** downloads all complete configurations from the last successful form load in the legacy `{"routines": [...]}` format. It does not include unsaved changes in the editor, author/time metadata, or incomplete/conflicting configurations (which are reported in the status). The download is still named `routines.json`, but the site no longer reads a routines file.
 - An **estimated time** is shown next to *Submit workout*. Timed sets count as entered, each rep counts as 10 seconds, and 1 minute of rest is added between consecutive sets.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
-- **Settings** on both Log and Trends includes six themes: Dark Red (the default), Dark Green, Dark Blue, Light Red, Light Green, and Light Blue. Changes apply immediately and are remembered on this device across both pages, without requiring sign-in.
-- **Units** in Settings selects Metric (kg, the default) or Imperial (lb) for weight entry, trend tables, and weight/volume charts. Switching units converts current entries without clearing the workout. The preference is remembered on this device across both pages; drafts, queued submissions, shared configurations, and exports continue to store kilograms for compatibility.
+- **Settings** across Log, Trends, and Measurements includes six themes: Dark Red (the default), Dark Green, Dark Blue, Light Red, Light Green, and Light Blue. Changes apply immediately and are remembered on this device, without requiring sign-in.
+- **Units** in Settings selects Metric (kg, the default) or Imperial (lb) for weight entry, trend tables, and weight/volume charts. Switching units converts current entries without clearing the workout. The preference is remembered on this device across all three pages; drafts, queued submissions, shared configurations, and exports continue to store kilograms for compatibility.
 - **Default exercise measure** in Settings selects Reps (the default) or Time for new exercises, including the first exercise in a new or cleared workout. The preference is remembered on this device and can be changed on Log or Trends. Existing exercises, restored drafts, and saved configurations retain their recorded measure; each exercise can still be changed individually.
 
 ### Trends page
@@ -34,7 +35,17 @@ Static GitHub Pages site.
 
 Reading responses requires **edit access to the form**. **Load my data** always re-reads the form and all responses from Google (bypassing the browser cache), discarding previously loaded results; the status line shows when the data was loaded. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
 
-### Workout tracker setup
+### Measurements page
+
+[`workouts/measurements.html`](workouts/measurements.html) sends body measurements, weight, sleep, water, energy, and mood to a separate **Google Form**, with one response per submission. Body measurements use centimetres or inches and weight uses kilograms or pounds according to Settings; sleep is in hours and water is in litres or US fluid ounces. Responses always store centimetres (`neckCm`, `bicepLCm`, etc.), kilograms (`weightKg`), hours (`sleepHours`), and litres (`waterLitres`), plus `email`, `measurementId`, `date`, `energy`, and `mood`. Energy and mood are dropdowns with the same options as the page.
+
+The latest entry per date and all pending submissions are stored together on this device, separately for each signed-in account. Network failures retain the pending responses, which retry on sign-in, when the browser comes online, or with **Retry now**. A completed anonymous Google Forms POST is opaque: the page reports that requests were sent, not that Google confirmed storage. A timeout or storage failure after sending may cause a duplicate response on retry; `measurementId` identifies retries of the same submission.
+
+**Edit** fills the form from local history; submitting it appends a new Google Form response, rather than editing or replacing any earlier response. The local daily history updates to the latest submitted values. Previous device-only entries are preserved but are not automatically uploaded; use **Edit** and **Submit measurements** to send them. The page does not load history from Google or synchronize history across devices.
+
+To configure measurements, run **`createMeasurementsForm`** from [`workouts/setup/create-form.gs`](workouts/setup/create-form.gs) in Google Apps Script, grant access, and copy its logged **`measurementsForm: {...}`** block into [`workouts/config.js`](workouts/config.js), replacing the empty measurements block only. This creates a separate form and linked response spreadsheet. Publish it, allow anonymous responses, disable automatic email collection and one-response limits, and leave measurement questions optional so partial entries can be submitted. No additional OAuth scopes or form-edit permission are needed to submit measurements. All entry mappings are required; missing or duplicate mappings disable submission and show setup instructions.
+
+### Fitness tracker setup
 
 1. **Create the Google Form**
    - Open <https://script.google.com>, create a new project, and paste in [`workouts/setup/create-form.gs`](workouts/setup/create-form.gs).
@@ -67,6 +78,7 @@ Local testing: `python -m http.server 8000`, then open <http://localhost:8000/wo
 
 Configuration regression tests (Node.js): `node --test workouts/tests/routines.test.cjs`.
 Theme/settings regression tests (Node.js): `node --test workouts/tests/settings.test.cjs`.
+Measurements regression tests (Node.js): `node --test workouts/tests/measurements.test.cjs`.
 
 ### Configuration saves and recovery
 
@@ -98,4 +110,4 @@ The legacy routines file is no longer a data source. To migrate an existing rout
 
 ### Security notes
 
-GitHub Pages is static hosting, so sign-in gates only the user interface. Both Google Forms' `formResponse` URLs are public in the page source, and anyone who finds them could submit data directly. Share form-edit access only with trusted tracker users, keep the response spreadsheets private, and treat the `email` columns as claimed attribution, not proof of who logged or saved a workout.
+GitHub Pages is static hosting, so sign-in gates only the user interface. All Google Forms' `formResponse` URLs are public in the page source, and anyone who finds them could submit data directly. Share form-edit access only with trusted tracker users, keep the response spreadsheets private, and treat the `email` columns as claimed attribution, not proof of who logged or saved a workout or measurement.

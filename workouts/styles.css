@@ -459,6 +459,32 @@ input[type="range"] {
   border-top: none;
 }
 
+.measurement-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.measurement-history-entry {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.measurement-history-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.measurement-history-values span {
+  white-space: nowrap;
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.85rem;
