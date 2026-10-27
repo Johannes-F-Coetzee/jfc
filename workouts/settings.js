@@ -53,6 +53,26 @@
 
   document.documentElement.dataset.theme = theme;
 
+  function updateFavicon() {
+    const favicon = document.querySelector('link[rel="icon"]');
+    const styles = getComputedStyle(document.documentElement);
+    const background = styles.getPropertyValue("--bg").trim();
+    const foreground = styles.getPropertyValue("--text").trim();
+    const accent = styles.getPropertyValue("--accent").trim();
+    const image = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="${background}"/>
+      <g stroke="${foreground}" stroke-width="3" stroke-linecap="round">
+        <line x1="18" y1="6" x2="18" y2="31"/>
+        <line x1="46" y1="6" x2="46" y2="31"/>
+      </g>
+      <g fill="none" stroke="${accent}" stroke-width="4.5">
+        <circle cx="18" cy="41" r="9.5"/>
+        <circle cx="46" cy="41" r="9.5"/>
+      </g>
+    </svg>`;
+    favicon.href = `data:image/svg+xml,${encodeURIComponent(image)}`;
+  }
+
   window.WorkoutSettings = {
     get defaultMeasure() { return defaultMeasure; },
     get units() { return units; },
@@ -66,6 +86,7 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
+    updateFavicon();
     const menu = document.querySelector("#settings-menu");
     const selector = document.querySelector("#theme-select");
     const status = document.querySelector("#settings-status");
@@ -79,6 +100,7 @@
     selector.addEventListener("change", () => {
       theme = selector.value;
       document.documentElement.dataset.theme = theme;
+      updateFavicon();
 
       try {
         localStorage.setItem(STORAGE_KEY, theme);

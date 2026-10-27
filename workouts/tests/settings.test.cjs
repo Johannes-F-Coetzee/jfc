@@ -9,6 +9,33 @@ const themes = [
   "dark-red", "dark-green", "dark-blue",
   "light-red", "light-green", "light-blue"
 ];
+const stylesheet = readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
+
+function themeColors(theme) {
+  const colors = {};
+  const selectors = [":root"];
+
+  if (theme.startsWith("light-")) {
+    selectors.push(':root[data-theme^="light-"]');
+  }
+
+  selectors.push(`:root[data-theme="${theme}"]`);
+  for (const selector of selectors) {
+    const start = stylesheet.indexOf(`${selector} {`);
+
+    if (start === -1) {
+      continue;
+    }
+
+    const block = stylesheet.slice(start, stylesheet.indexOf("}", start));
+
+    for (const match of block.matchAll(/(--[\w-]+):\s*([^;]+);/g)) {
+      colors[match[1]] = match[2].trim();
+    }
+  }
+
+  return colors;
+}
 
 function createEnvironment(savedTheme = null, options = {}) {
   const events = {};
@@ -23,6 +50,7 @@ function createEnvironment(savedTheme = null, options = {}) {
     addEventListener: (name, callback) => { changes[name] = callback; }
   };
   const status = { textContent: "" };
+  const favicon = { href: "excersise_favicon.svg" };
   const unitsChanges = {};
   const unitsSelector = {
     value: "",
@@ -40,7 +68,8 @@ function createEnvironment(savedTheme = null, options = {}) {
   };
   const elements = {
     "#settings-menu": menu, "#theme-select": selector, "#settings-status": status,
-    "#units-select": unitsSelector, "#default-measure-select": measureSelector
+    "#units-select": unitsSelector, "#default-measure-select": measureSelector,
+    'link[rel="icon"]': favicon
   };
   const document = {
     documentElement: { dataset: {} },
@@ -52,6 +81,9 @@ function createEnvironment(savedTheme = null, options = {}) {
 
   runInNewContext(source, {
     document, window,
+    getComputedStyle: element => ({
+      getPropertyValue: property => themeColors(element.dataset.theme)[property] || ""
+    }),
     CustomEvent: class {
       constructor(type, options) {
         this.type = type;
@@ -76,7 +108,7 @@ function createEnvironment(savedTheme = null, options = {}) {
 
   return {
     document, selector, unitsSelector, measureSelector, settings: window.WorkoutSettings,
-    status, menu, storage, messages, events,
+    status, favicon, menu, storage, messages, events,
     get focused() { return focused; },
     initialize: () => events.DOMContentLoaded(),
     select: value => { selector.value = value; changes.change(); },
@@ -94,6 +126,22 @@ test("Dark Red is applied before the settings UI initializes", () => {
 });
 
 for (const theme of themes) {
+  test(`${theme} favicon uses the page palette on load and theme change`, () => {
+    const colors = themeColors(theme);
+    const restored = createEnvironment(theme);
+    restored.initialize();
+    const environment = createEnvironment();
+    environment.initialize();
+    environment.select(theme);
+    assert.equal(environment.favicon.href, restored.favicon.href);
+    assert.ok(environment.favicon.href.startsWith("data:image/svg+xml,"));
+    const image = decodeURIComponent(environment.favicon.href.split(",")[1]);
+    assert.ok(image.includes(`fill="${colors["--bg"]}"`));
+    assert.ok(image.includes(`stroke="${colors["--text"]}"`));
+    assert.ok(image.includes(`stroke="${colors["--accent"]}"`));
+    assert.equal((image.match(/<circle /g) || []).length, 2);
+  });
+
   test(`${theme} applies, persists, and restores on another page`, () => {
     const environment = createEnvironment();
     environment.initialize();
@@ -129,7 +177,9 @@ test("storage read failures are reported without preventing theme changes", () =
 test("storage write failures apply the theme but do not claim it was saved", () => {
   const environment = createEnvironment(null, { failWrite: true });
   environment.initialize();
+  const originalFavicon = environment.favicon.href;
   environment.select("light-green");
+  assert.notEqual(environment.favicon.href, originalFavicon);
   assert.equal(environment.document.documentElement.dataset.theme, "light-green");
   assert.equal(environment.storage.has("workout.theme"), false);
   assert.match(environment.status.textContent, /could not be saved/);
@@ -154,6 +204,7 @@ test("all pages load settings before styles and offer all six themes", () => {
   for (const filename of ["index.html", "trends.html", "measurements.html"]) {
     const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
     assert.ok(html.indexOf('src="settings.js"') < html.indexOf('href="styles.css"'));
+    assert.match(html, /<link rel="icon" href="excersise_favicon\.svg" type="image\/svg\+xml">/);
     assert.match(html, /<details id="settings-menu"/);
     assert.match(html, /<select id="units-select">/);
     assert.match(html, /<option value="metric">Metric \(kg\)<\/option>/);
