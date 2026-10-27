@@ -16,9 +16,9 @@
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
   let currentUser = null;
   let flushing = false;
-  const ROUTINES_FILE_PATH = "routines.json";
-  let fileRoutines = new Map();
-  let routinesError = "";
+  let sharedRoutines = new Map();
+  let routinesLoaded = false;
+  let routinesBusy = false;
 
   // ---------- storage helpers ----------
   function readJson(storage, key, fallback) {
@@ -55,6 +55,10 @@
       problems.push("The Google Form <code>actionUrl</code> / entry IDs are not set - workouts cannot be submitted.");
     }
 
+    if (!WorkoutRoutines.isConfigured()) {
+      problems.push("The separate <code>configurationForm</code> is not set - shared configurations cannot be saved or loaded.");
+    }
+
     const box = $("#setup-warning");
 
     if (problems.length) {
@@ -70,6 +74,8 @@
     $("#tracker-view").hidden = false;
     $("#submit-workout").disabled = !hasFormConfig();
     refreshRoutineList();
+    updateRoutineButtons();
+    setRoutineStatus("Load shared configurations to choose a workout saved by any user.");
     renderHistory();
     updateQueueUi();
     flushQueue();
@@ -77,6 +83,10 @@
 
   function hideTracker() {
     currentUser = null;
+    sharedRoutines = new Map();
+    routinesLoaded = false;
+    refreshRoutineList();
+    refreshExerciseNames();
     $("#tracker-view").hidden = true;
   }
 
@@ -229,7 +239,7 @@
     updateEstimate();
   }
 
-  // ---------- drafts & routines ----------
+  // ---------- drafts & shared configurations ----------
   let draftTimer = null;
 
   function saveDraft() {
@@ -295,83 +305,73 @@
       }));
   }
 
-  // Accepts loosely-typed JSON from routines.json and returns a clean { name, exercises } or null.
-  function normalizeRoutine(raw) {
-    if (!raw || typeof raw.name !== "string" || !raw.name.trim() || !Array.isArray(raw.exercises)) {
-      return null;
-    }
-
-    const numberOrNull = value => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null);
-    const exercises = raw.exercises
-      .filter(exercise => exercise && typeof exercise.name === "string" && exercise.name.trim())
-      .map(exercise => ({
-        name: exercise.name.trim(),
-        measure: exercise.measure === "time" ? "time" : "reps",
-        sets: (Array.isArray(exercise.sets) && exercise.sets.length ? exercise.sets : [{}]).map(setData => ({
-          reps: numberOrNull(setData?.reps),
-          durationSeconds: numberOrNull(setData?.durationSeconds),
-          weightKg: numberOrNull(setData?.weightKg)
-        }))
-      }));
-
-    return exercises.length ? { name: raw.name.trim(), exercises } : null;
-  }
-
-  async function loadRoutinesFile() {
-    try {
-      const response = await fetch(ROUTINES_FILE_PATH, { cache: "no-cache" });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const list = Array.isArray(data) ? data : data.routines;
-
-      if (!Array.isArray(list)) {
-        throw new Error("missing \"routines\" array");
-      }
-
-      fileRoutines = new Map();
-      list.map(normalizeRoutine).filter(Boolean).forEach(routine => fileRoutines.set(routine.name, routine));
-      routinesError = "";
-    } catch (error) {
-      fileRoutines = new Map();
-      routinesError = `Could not load ${ROUTINES_FILE_PATH}: ${error.message}`;
-    }
+  function applyRoutineCatalog(catalog) {
+    sharedRoutines = catalog.routines;
+    routinesLoaded = true;
     refreshRoutineList();
     refreshExerciseNames();
+    setRoutineStatus(
+      `Loaded ${sharedRoutines.size} shared configuration${sharedRoutines.size === 1 ? "" : "s"}. ` +
+      catalog.warnings.join(" "),
+      catalog.warnings.length ? "error" : "ok"
+    );
+  }
+
+  function setRoutineStatus(message, kind = "") {
+    $("#routine-status").textContent = message;
+    $("#routine-status").className = `status ${kind}`;
+  }
+
+  function updateRoutineButtons() {
+    const unavailable = routinesBusy || !currentUser || !WorkoutRoutines.isConfigured();
+    $("#refresh-routines").disabled = unavailable;
+    $("#save-routine").disabled = unavailable;
+    $("#load-routine").disabled = unavailable || !routinesLoaded;
+    $("#export-routine").disabled = routinesBusy || !routinesLoaded;
+  }
+
+  async function runRoutineAction(action) {
+    if (routinesBusy || !currentUser) {
+      return;
+    }
+
+    const user = currentUser;
+    routinesBusy = true;
+    updateRoutineButtons();
+    setRoutineStatus("Reading shared configurations...");
+
+    try {
+      await action(user);
+    } catch (error) {
+      if (currentUser === user) {
+        setRoutineStatus(error.message, "error");
+      }
+    } finally {
+      routinesBusy = false;
+      updateRoutineButtons();
+    }
   }
 
   function findRoutine(name) {
-    if (fileRoutines.has(name)) {
-      return fileRoutines.get(name);
+    if (sharedRoutines.has(name)) {
+      return sharedRoutines.get(name);
     }
 
     const lower = name.toLowerCase();
 
-    return [...fileRoutines.values()].find(routine => routine.name.toLowerCase() === lower) || null;
+    return [...sharedRoutines.values()].find(routine => routine.name.toLowerCase() === lower) || null;
   }
 
   function refreshRoutineList() {
-    $("#routine-list").innerHTML = [...fileRoutines.keys()].sort()
+    $("#routine-list").innerHTML = [...sharedRoutines.keys()].sort()
       .map(routineName => `<option value="${escapeMarkup(routineName)}"></option>`).join("");
   }
 
-  function exportRoutines(typedName, workout) {
-    const exercises = routineTemplate(workout);
-
-    if (!exercises.length) {
-      return false;
-    }
-
-    const merged = new Map([...fileRoutines].map(([routineKey, routine]) => [
-      routineKey,
-      { name: routine.name, exercises: routineTemplate(routine) }
-    ]));
-    const name = findRoutine(typedName)?.name || typedName;
-    merged.set(name, { name, exercises });
-    const json = JSON.stringify({ routines: [...merged.values()] }, null, 2) + "\n";
+  function exportRoutines() {
+    const routines = [...sharedRoutines.values()].map(routine => ({
+      name: routine.name, exercises: routineTemplate(routine)
+    }));
+    const json = JSON.stringify({ routines }, null, 2) + "\n";
     const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -380,13 +380,11 @@
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-    return true;
   }
 
   function refreshExerciseNames() {
     const names = new Set();
-    fileRoutines.forEach(routine => routine.exercises.forEach(exercise => names.add(exercise.name)));
+    sharedRoutines.forEach(routine => routine.exercises.forEach(exercise => names.add(exercise.name)));
     $$("#exercises .ex-name").forEach(input => input.value.trim() && names.add(input.value.trim()));
     $("#exercise-names").innerHTML = [...names].sort()
       .map(exerciseName => `<option value="${escapeMarkup(exerciseName)}"></option>`).join("");
@@ -424,25 +422,7 @@
       throw new Error("Sign in before submitting workout data.");
     }
 
-    const body = new URLSearchParams();
-
-    for (const [key, entry] of Object.entries(FORM_CONFIGURATION.fields || {})) {
-      const value = row[key];
-
-      if (entry && value !== null && value !== undefined && value !== "") {
-        body.append(entry, String(value));
-      }
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      // Google Forms does not send CORS headers, so the response is opaque; only network failures are detectable.
-      await fetch(FORM_CONFIGURATION.actionUrl, { method: "POST", mode: "no-cors", body, signal: controller.signal });
-    } finally {
-      clearTimeout(timeout);
-    }
+    await WorkoutForms.postRow(FORM_CONFIGURATION, row);
   }
 
   async function flushQueue() {
@@ -502,8 +482,8 @@
     return { sessionId, rows };
   }
 
-  function validate(workout) {
-    if (!workout.date) {
+  function validate(workout, { requireDate = true } = {}) {
+    if (requireDate && !workout.date) {
       return "Please choose a date.";
     }
 
@@ -663,7 +643,40 @@
       saveDraft();
     });
 
-    $("#load-routine").addEventListener("click", async () => {
+    $("#refresh-routines").addEventListener("click", () => runRoutineAction(async user => {
+      const catalog = await WorkoutRoutines.load();
+
+      if (currentUser === user) {
+        applyRoutineCatalog(catalog);
+      }
+    }));
+
+    $("#save-routine").addEventListener("click", () => {
+      $$(".set").forEach(stopTimer);
+      const workout = collectWorkout();
+      const error = !workout.routine ? "Enter a unique workout name first." : validate(workout, { requireDate: false });
+
+      if (error) {
+        setRoutineStatus(error, "error");
+
+        return;
+      }
+
+      runRoutineAction(async user => {
+        const catalog = await WorkoutRoutines.save({
+          name: workout.routine, exercises: routineTemplate(workout)
+        }, estimateSeconds(workout));
+
+        if (currentUser === user) {
+          applyRoutineCatalog(catalog);
+          setRoutineStatus(`Saved configuration "${workout.routine}" by ${user.email}. ` +
+            `Estimated time: ${formatEstimate(estimateSeconds(workout))}. ` + catalog.warnings.join(" "),
+          catalog.warnings.length ? "error" : "ok");
+        }
+      });
+    });
+
+    $("#load-routine").addEventListener("click", () => {
       const name = $("#routine-name").value.trim();
 
       if (!name) {
@@ -672,40 +685,23 @@
         return;
       }
 
-      await loadRoutinesFile();
-
-      if (routinesError) {
-        setStatus(routinesError, "error");
-
-        return;
-      }
-
       const routine = findRoutine(name);
 
       if (!routine) {
-        setStatus(`No routine called "${name}" in routines.json.`, "error");
+        setRoutineStatus(`No loaded configuration called "${name}". Load shared configurations to refresh the list.`, "error");
 
         return;
       }
 
       renderWorkout({ date: $("#workout-date").value, routine: routine.name, exercises: routine.exercises });
       saveDraft();
-      setStatus(`Loaded routine "${routine.name}".`, "ok");
+      setRoutineStatus(`Loaded "${routine.name}", saved by ${routine.savedBy}. ` +
+        `Estimated time: ${formatEstimate(routine.estimatedSeconds)}.`, "ok");
     });
 
     $("#export-routine").addEventListener("click", () => {
-      const name = $("#routine-name").value.trim();
-
-      if (!name) {
-        setStatus("Enter a routine name first.", "error");
-
-        return;
-      }
-
-      const exported = exportRoutines(name, collectWorkout());
-      setStatus(exported
-        ? `Exported routines.json with "${name}". Replace workouts/routines.json in the repo with it to publish.`
-        : "Add at least one named exercise before exporting.", exported ? "ok" : "error");
+      exportRoutines();
+      setRoutineStatus(`Exported ${sharedRoutines.size} loaded configurations in the routines.json format.`, "ok");
     });
 
     $("#clear-workout").addEventListener("click", () => {
@@ -732,7 +728,7 @@
     showSetupWarnings();
     wireEvents();
     renderWorkout(readJson(localStorage, STORAGE_KEYS.draft, {}));
-    loadRoutinesFile();
+    updateRoutineButtons();
     WorkoutAuth.init({ onSignIn: showTracker, onSignOut: hideTracker });
   }
 

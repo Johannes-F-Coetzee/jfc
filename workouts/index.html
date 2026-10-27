@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="styles.css">
   <script src="config.js"></script>
   <script src="auth.js" defer></script>
+  <script src="google-forms.js" defer></script>
+  <script src="routines.js" defer></script>
   <script src="app.js" defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -47,11 +49,14 @@
           </label>
         </div>
         <div class="row">
+          <button type="button" id="refresh-routines" class="btn ghost small">Load shared configurations</button>
           <button type="button" id="load-routine" class="btn ghost small">Load configured routine</button>
+          <button type="button" id="save-routine" class="btn ghost small">Save configuration</button>
           <button type="button" id="export-routine" class="btn ghost small"
-            title="Download routines.json including this workout as a routine">Export routine (JSON)</button>
+            title="Download all shared configurations in the routines.json format">Export configurations (JSON)</button>
           <button type="button" id="clear-workout" class="btn ghost small">Clear</button>
         </div>
+        <p id="routine-status" class="status" role="status" aria-live="polite"></p>
 
         <div id="exercises"></div>
         <datalist id="exercise-names"></datalist>

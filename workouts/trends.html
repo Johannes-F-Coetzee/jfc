@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="config.js"></script>
   <script src="auth.js" defer></script>
+  <script src="google-forms.js" defer></script>
   <script src="trends.js" defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -66,16 +67,19 @@
             will be at
             <code>https://&lt;your-user&gt;.github.io/&lt;repo-name&gt;/workouts/</code>.
           </li>
-          <li><strong>Create your Google Form.</strong> At <a href="https://script.google.com" target="_blank"
+          <li><strong>Create your Google Forms.</strong> At <a href="https://script.google.com" target="_blank"
               rel="noopener">script.google.com</a>,
             create a project, paste in <code>workouts/setup/create-form.gs</code> and run
-            <code>createWorkoutForm</code>.
-            It creates the form and a response spreadsheet, then prints a <code>form: {...}</code> block.</li>
+            <code>createWorkoutForm</code> and <code>createWorkoutConfigurationForm</code>.
+            Each creates a separate form and response spreadsheet, then prints a <code>form: {...}</code> or
+            <code>configurationForm: {...}</code> block. Publish both forms and allow anonymous responses.
+            Share edit access to the configuration form with every tracker user so they can load shared workouts.</li>
           <li><strong>Create a Google Cloud project.</strong> In the <a href="https://console.cloud.google.com/"
               target="_blank" rel="noopener">Google Cloud Console</a>:
             <ul>
               <li>Enable the <strong>Google Forms API</strong> under <em>APIs &amp; Services &rarr; Library</em>.</li>
               <li>Set up the <em>OAuth consent screen</em> and add your Google account as a test user.</li>
+              <li>Add the <code>forms.body.readonly</code> and <code>forms.responses.readonly</code> scopes.</li>
               <li>Under <em>Credentials</em>, create an <em>OAuth client ID</em> of type <em>Web application</em>. Add
                 <code>https://&lt;your-user&gt;.github.io</code> and, for local testing, <code>http://localhost</code>
                 and
@@ -85,11 +89,13 @@
           </li>
           <li><strong>Update <code>workouts/config.js</code>.</strong> Set <code>googleClientId</code> to your client
             ID, replace the
-            <code>form</code> block with the one printed in step 3, and optionally set <code>allowedEmails</code>.
+            <code>form</code> and <code>configurationForm</code> blocks with those printed in step 3,
+            and optionally set <code>allowedEmails</code>.
           </li>
-          <li><strong>Add your routines.</strong> Edit <code>workouts/routines.json</code>, or use <em>Export routine
-              (JSON)</em> on the
-            Log page and commit the downloaded file.</li>
+          <li><strong>Save your configurations.</strong> On the Log page, enter exercises and sets under a unique
+            workout name and press <em>Save configuration</em>. Use <em>Load shared configurations</em> to see
+            workouts saved by all users. <em>Export configurations (JSON)</em> downloads the loaded configurations
+            as a backup; no routines file needs to be committed.</li>
           <li><strong>Commit and push.</strong> After GitHub Pages redeploys, sign in on your own site to log workouts
             and view your trends.</li>
         </ol>

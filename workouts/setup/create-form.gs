@@ -3,8 +3,8 @@
  *
  * Usage:
  *   1. Open https://script.google.com, create a new project and paste this file.
- *   2. Run `createWorkoutForm` and grant the requested permissions.
- *   3. Open View > Logs (Execution log) and copy the printed `form` block into workouts/config.js.
+ *   2. Run `createWorkoutForm` for logs and `createWorkoutConfigurationForm` for shared configurations.
+ *   3. Copy the printed `form` / `configurationForm` blocks into workouts/config.js.
  */
 
 const CREATE_RESPONSE_SHEET = true;
@@ -26,9 +26,32 @@ const FIELDS = [
   ["sessionNotes", "Session notes"]
 ];
 
+const CONFIGURATION_FIELDS = [
+  ["email", "Email"],
+  ["configurationId", "Configuration ID"],
+  ["routine", "Routine"],
+  ["totalSets", "Total sets"],
+  ["estimatedSeconds", "Estimated time (seconds)"],
+  ["exercise", "Exercise"],
+  ["exerciseOrder", "Exercise order"],
+  ["setNumber", "Set number"],
+  ["measure", "Measure (reps/time)"],
+  ["reps", "Reps"],
+  ["durationSeconds", "Duration (seconds)"],
+  ["weightKg", "Weight (kg)"]
+];
+
 function createWorkoutForm() {
-  const form = FormApp.create("Workout Tracker Log");
-  form.setDescription("Backend for the workout tracker web app. One response per set.");
+  createTrackerForm("Workout Tracker Log", "form", FIELDS);
+}
+
+function createWorkoutConfigurationForm() {
+  createTrackerForm("Workout Tracker Configurations", "configurationForm", CONFIGURATION_FIELDS);
+}
+
+function createTrackerForm(title, configurationKey, fieldDefinitions) {
+  const form = FormApp.create(title);
+  form.setDescription("Backend for the workout tracker web app. One response per set. Do not rename questions.");
   form.setCollectEmail(false);
   form.setLimitOneResponsePerUser(false);
   form.setAcceptingResponses(true);
@@ -43,10 +66,10 @@ function createWorkoutForm() {
     form.setPublished(true);
   }
 
-  const items = FIELDS.map(([key, title]) => [key, form.addTextItem().setTitle(title)]);
+  const items = fieldDefinitions.map(([key, questionTitle]) => [key, form.addTextItem().setTitle(questionTitle)]);
 
   if (CREATE_RESPONSE_SHEET) {
-    const sheet = SpreadsheetApp.create("Workout Tracker Responses");
+    const sheet = SpreadsheetApp.create(title + " Responses");
     form.setDestination(FormApp.DestinationType.SPREADSHEET, sheet.getId());
     Logger.log("Responses spreadsheet: " + sheet.getUrl());
   }
@@ -61,7 +84,7 @@ function createWorkoutForm() {
     fields[key] = match ? match[1] : "";
   });
   const actionUrl = form.getPublishedUrl().replace(/\/viewform.*$/, "/formResponse");
-  const snippet = "form: " + JSON.stringify({ formId: form.getId(), actionUrl: actionUrl, fields: fields }, null, 2);
+  const snippet = configurationKey + ": " + JSON.stringify({ formId: form.getId(), actionUrl: actionUrl, fields: fields }, null, 2);
   Logger.log("Form editor: " + form.getEditUrl());
   Logger.log("Paste into workouts/config.js:\n" + snippet);
 }

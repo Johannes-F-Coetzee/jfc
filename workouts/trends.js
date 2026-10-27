@@ -3,11 +3,8 @@
 
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
-  const FORMS_READ_PERMISSIONS = [
-    "https://www.googleapis.com/auth/forms.body.readonly",
-    "https://www.googleapis.com/auth/forms.responses.readonly"
-  ];
-  const GOOGLE_FORMS_ENDPOINT = "https://forms.googleapis.com/v1/forms";
+  const FORMS_READ_PERMISSIONS = WorkoutForms.READ_PERMISSIONS;
+  const GOOGLE_FORMS_REQUEST_ERROR = WorkoutForms.RequestError;
   const SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
   const SECONDS_PER_REPETITION = 10;
   const REST_SECONDS_BETWEEN_SETS = 60;
@@ -104,81 +101,17 @@
     return token;
   }
 
-  class GoogleFormsRequestError extends Error {
-    constructor(status, body) {
-      super(body?.error?.message || `HTTP ${status}`);
-      this.status = status;
-      this.body = body;
-    }
-
-    get reason() {
-      const details = this.body?.error?.details || [];
-
-      return details.map(detail => detail.reason).find(Boolean) || this.body?.error?.status || "";
-    }
-  }
-
   async function fetchGoogleFormsResource(path, token) {
-    const response = await fetch(`${GOOGLE_FORMS_ENDPOINT}/${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    const body = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      throw new GoogleFormsRequestError(response.status, body);
-    }
-
-    return body;
+    return WorkoutForms.fetchResource(path, token);
   }
 
   // ---------- reading responses ----------
   function buildQuestionMap(formDefinition) {
-    const fieldNamesByEntryNumber = new Map();
-    Object.entries(FORM_CONFIGURATION.fields || {}).forEach(([fieldName, entryId]) => {
-      const match = /^entry\.(\d+)$/.exec(entryId || "");
-
-      if (match) {
-        fieldNamesByEntryNumber.set(Number(match[1]), fieldName);
-      }
-    });
-    const fieldNamesByQuestionId = new Map();
-    (formDefinition.items || []).forEach(item => {
-      const questionId = item.questionItem?.question?.questionId;
-
-      if (!questionId) {
-        return;
-      }
-
-      const fieldName = fieldNamesByEntryNumber.get(parseInt(questionId, 16)) ||
-        FORM_QUESTION_FIELD_NAMES[(item.title || "").trim().toLowerCase()];
-
-      if (fieldName) {
-        fieldNamesByQuestionId.set(questionId, fieldName);
-      }
-    });
-
-    return fieldNamesByQuestionId;
+    return WorkoutForms.buildQuestionMap(FORM_CONFIGURATION, formDefinition, FORM_QUESTION_FIELD_NAMES);
   }
 
   async function fetchAllResponses(token) {
-    const allResponses = [];
-    let nextPageToken = "";
-
-    do {
-      const queryParameters = new URLSearchParams({ pageSize: "5000" });
-
-      if (nextPageToken) {
-        queryParameters.set("pageToken", nextPageToken);
-      }
-
-      const encodedFormIdentifier = encodeURIComponent(FORM_CONFIGURATION.formId);
-      const responsePage = await fetchGoogleFormsResource(
-        `${encodedFormIdentifier}/responses?${queryParameters}`,
-        token
-      );
-      allResponses.push(...(responsePage.responses || []));
-      nextPageToken = responsePage.nextPageToken || "";
-    } while (nextPageToken);
-
-    return allResponses;
+    return WorkoutForms.fetchAllResponses(FORM_CONFIGURATION, token);
   }
 
   function toWorkoutRow(response, questionMap) {
@@ -239,7 +172,7 @@
       try {
         form = await fetchGoogleFormsResource(encodeURIComponent(FORM_CONFIGURATION.formId), token);
       } catch (error) {
-        if (!(error instanceof GoogleFormsRequestError) || error.status !== 401) {
+        if (!(error instanceof GOOGLE_FORMS_REQUEST_ERROR) || error.status !== 401) {
           throw error;
         }
 
@@ -270,7 +203,7 @@
   function handleLoadError(error, interactive) {
     sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
 
-    if (error instanceof GoogleFormsRequestError) {
+    if (error instanceof GOOGLE_FORMS_REQUEST_ERROR ) {
       if (error.reason === "SERVICE_DISABLED" || error.reason === "accessNotConfigured") {
         showForkHelp("The Google Forms API isn't enabled in this site's Google Cloud project.");
         setStatus("");

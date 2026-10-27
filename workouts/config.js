@@ -7,6 +7,27 @@ window.WORKOUT_CONFIG = {
   // Optional allow-list of Google account emails permitted to use the tracker. Empty = any Google account.
   allowedEmails: [],
 
+  // Run createWorkoutConfigurationForm in setup/create-form.gs and replace this block with its output.
+  // All tracker users need edit access to this separate form to load shared configurations.
+  configurationForm: {
+    formId: "",
+    actionUrl: "",
+    fields: {
+      email: "",
+      configurationId: "",
+      routine: "",
+      totalSets: "",
+      estimatedSeconds: "",
+      exercise: "",
+      exerciseOrder: "",
+      setNumber: "",
+      measure: "",
+      reps: "",
+      durationSeconds: "",
+      weightKg: ""
+    }
+  },
+
   form: {
     // Edit ID of the form, used by the Trends page to read responses through the Google Forms API.
     // It's the long ID in the form editor URL: https://docs.google.com/forms/d/<FORM_ID>/edit (not the /d/e/... ID).
