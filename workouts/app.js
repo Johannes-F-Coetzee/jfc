@@ -339,6 +339,7 @@
   }
 
   async function postToForm(row) {
+    if (!currentUser) throw new Error("Sign in before submitting workout data.");
     const body = new URLSearchParams();
     for (const [key, entry] of Object.entries(FORM.fields || {})) {
       const value = row[key];
@@ -355,6 +356,7 @@
   }
 
   async function flushQueue() {
+    if (!currentUser) return false;
     if (flushing || !hasFormConfig()) return readQueue().length === 0;
     flushing = true;
     try {
