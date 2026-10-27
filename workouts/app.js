@@ -178,7 +178,8 @@
   function addExercise(data = {}) {
     const exerciseElement = $("#exercise-template").content.firstElementChild.cloneNode(true);
     $(".ex-name", exerciseElement).value = data.name ?? "";
-    const measure = data.measure === "time" ? "time" : "reps";
+    const measure = data.measure == null ? WorkoutSettings.defaultMeasure
+      : data.measure === "time" ? "time" : "reps";
     $(".ex-measure", exerciseElement).value = measure;
     exerciseElement.dataset.measure = measure;
     const workoutSets = data.sets && data.sets.length ? data.sets : [{}];

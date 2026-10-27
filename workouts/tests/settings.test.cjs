@@ -15,6 +15,7 @@ function createEnvironment(savedTheme = null, options = {}) {
   const changes = {};
   const storage = new Map(savedTheme === null ? [] : [["workout.theme", savedTheme]]);
   if (options.units !== undefined) storage.set("workout.units", options.units);
+  if (options.defaultMeasure !== undefined) storage.set("workout.defaultMeasure", options.defaultMeasure);
   const messages = [];
   let focused = false;
   const selector = {
@@ -27,6 +28,11 @@ function createEnvironment(savedTheme = null, options = {}) {
     value: "",
     addEventListener: (name, callback) => { unitsChanges[name] = callback; }
   };
+  const measureChanges = {};
+  const measureSelector = {
+    value: "",
+    addEventListener: (name, callback) => { measureChanges[name] = callback; }
+  };
   const menu = {
     open: false,
     contains: target => target === selector,
@@ -34,7 +40,7 @@ function createEnvironment(savedTheme = null, options = {}) {
   };
   const elements = {
     "#settings-menu": menu, "#theme-select": selector, "#settings-status": status,
-    "#units-select": unitsSelector
+    "#units-select": unitsSelector, "#default-measure-select": measureSelector
   };
   const document = {
     documentElement: { dataset: {} },
@@ -69,12 +75,13 @@ function createEnvironment(savedTheme = null, options = {}) {
   });
 
   return {
-    document, selector, unitsSelector, settings: window.WorkoutSettings,
+    document, selector, unitsSelector, measureSelector, settings: window.WorkoutSettings,
     status, menu, storage, messages, events,
     get focused() { return focused; },
     initialize: () => events.DOMContentLoaded(),
     select: value => { selector.value = value; changes.change(); },
-    selectUnits: value => { unitsSelector.value = value; unitsChanges.change(); }
+    selectUnits: value => { unitsSelector.value = value; unitsChanges.change(); },
+    selectMeasure: value => { measureSelector.value = value; measureChanges.change(); }
   };
 }
 
@@ -151,6 +158,9 @@ test("both pages load settings before styles and offer all six themes", () => {
     assert.match(html, /<select id="units-select">/);
     assert.match(html, /<option value="metric">Metric \(kg\)<\/option>/);
     assert.match(html, /<option value="imperial">Imperial \(lb\)<\/option>/);
+    assert.match(html, /<select id="default-measure-select" aria-describedby="default-measure-help">/);
+    assert.match(html, /<option value="reps">Reps<\/option>/);
+    assert.match(html, /<option value="time">Time<\/option>/);
     for (const theme of themes) {
       assert.ok(html.includes(`<option value="${theme}">`), `${filename}: ${theme}`);
     }
@@ -210,5 +220,48 @@ test("units apply when storage is unavailable without claiming persistence", () 
   assert.equal(environment.settings.weightToKg(100), 45.359237);
   assert.equal(environment.storage.has("workout.units"), false);
   assert.match(environment.status.textContent, /Units applied, but could not be saved/);
+  assert.equal(environment.messages.length, 1);
+});
+
+test("Reps is the default exercise measure before the UI initializes", () => {
+  const environment = createEnvironment();
+  assert.equal(environment.settings.defaultMeasure, "reps");
+  environment.initialize();
+  assert.equal(environment.measureSelector.value, "reps");
+});
+
+for (const defaultMeasure of ["reps", "time"]) {
+  test(`${defaultMeasure} default measure applies and persists across pages`, () => {
+    const environment = createEnvironment();
+    environment.initialize();
+    environment.selectMeasure(defaultMeasure);
+    assert.equal(environment.settings.defaultMeasure, defaultMeasure);
+    assert.equal(environment.storage.get("workout.defaultMeasure"), defaultMeasure);
+    assert.match(environment.status.textContent, /Default measure saved/);
+    const restored = createEnvironment(null, {
+      defaultMeasure: environment.storage.get("workout.defaultMeasure")
+    });
+    assert.equal(restored.settings.defaultMeasure, defaultMeasure);
+    restored.initialize();
+    assert.equal(restored.measureSelector.value, defaultMeasure);
+  });
+}
+
+test("unsupported default measures are reported and fall back to Reps", () => {
+  const environment = createEnvironment(null, { defaultMeasure: "unsupported" });
+  environment.initialize();
+  assert.equal(environment.settings.defaultMeasure, "reps");
+  assert.equal(environment.measureSelector.value, "reps");
+  assert.match(environment.status.textContent, /saved default measure is not supported/);
+  assert.equal(environment.messages.length, 1);
+});
+
+test("default measure applies when storage fails without claiming persistence", () => {
+  const environment = createEnvironment(null, { failWrite: true });
+  environment.initialize();
+  environment.selectMeasure("time");
+  assert.equal(environment.settings.defaultMeasure, "time");
+  assert.equal(environment.storage.has("workout.defaultMeasure"), false);
+  assert.match(environment.status.textContent, /Default measure applied, but could not be saved/);
   assert.equal(environment.messages.length, 1);
 });

@@ -21,6 +21,7 @@ Static GitHub Pages site.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
 - **Settings** on both Log and Trends includes six themes: Dark Red (the default), Dark Green, Dark Blue, Light Red, Light Green, and Light Blue. Changes apply immediately and are remembered on this device across both pages, without requiring sign-in.
 - **Units** in Settings selects Metric (kg, the default) or Imperial (lb) for weight entry, trend tables, and weight/volume charts. Switching units converts current entries without clearing the workout. The preference is remembered on this device across both pages; drafts, queued submissions, shared configurations, and exports continue to store kilograms for compatibility.
+- **Default exercise measure** in Settings selects Reps (the default) or Time for new exercises, including the first exercise in a new or cleared workout. The preference is remembered on this device and can be changed on Log or Trends. Existing exercises, restored drafts, and saved configurations retain their recorded measure; each exercise can still be changed individually.
 
 ### Trends page
 

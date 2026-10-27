@@ -44,7 +44,14 @@
             <option value="imperial">Imperial (lb)</option>
           </select>
         </label>
-        <p class="muted">Applies to Log and Trends on this device.</p>
+        <label class="field" for="default-measure-select">Default exercise measure
+          <select id="default-measure-select" aria-describedby="default-measure-help">
+            <option value="reps">Reps</option>
+            <option value="time">Time</option>
+          </select>
+        </label>
+        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved configurations keep their measure.</p>
+        <p class="muted">Settings are remembered on this device across Log and Trends.</p>
         <p id="settings-status" class="status" role="status" aria-live="polite"></p>
       </div>
     </details>

@@ -4,6 +4,7 @@
   const STORAGE_KEY = "workout.theme";
   const DEFAULT_THEME = "dark-red";
   const UNITS_STORAGE_KEY = "workout.units";
+  const DEFAULT_MEASURE_STORAGE_KEY = "workout.defaultMeasure";
   const KILOGRAMS_PER_POUND = 0.45359237;
   const THEMES = new Set([
     "dark-red", "dark-green", "dark-blue",
@@ -11,6 +12,7 @@
   ]);
   let theme = DEFAULT_THEME;
   let units = "metric";
+  let defaultMeasure = "reps";
   let storageMessage = "";
 
   try {
@@ -34,6 +36,16 @@
       storageMessage = [storageMessage, message].filter(Boolean).join(" ");
       console.warn(message);
     }
+
+    const savedMeasure = localStorage.getItem(DEFAULT_MEASURE_STORAGE_KEY);
+
+    if (savedMeasure === "reps" || savedMeasure === "time") {
+      defaultMeasure = savedMeasure;
+    } else if (savedMeasure !== null) {
+      const message = "The saved default measure is not supported. Using Reps.";
+      storageMessage = [storageMessage, message].filter(Boolean).join(" ");
+      console.warn(message);
+    }
   } catch (error) {
     storageMessage = "Your saved settings could not be read. Changes may not be remembered on this device.";
     console.error(storageMessage, error);
@@ -42,6 +54,7 @@
   document.documentElement.dataset.theme = theme;
 
   window.WorkoutSettings = {
+    get defaultMeasure() { return defaultMeasure; },
     get units() { return units; },
     get weightUnit() { return units === "imperial" ? "lb" : "kg"; },
     weightFromKg(value, system = units) {
@@ -57,8 +70,10 @@
     const selector = document.querySelector("#theme-select");
     const status = document.querySelector("#settings-status");
     const unitsSelector = document.querySelector("#units-select");
+    const measureSelector = document.querySelector("#default-measure-select");
     selector.value = theme;
     unitsSelector.value = units;
+    measureSelector.value = defaultMeasure;
     status.textContent = storageMessage;
 
     selector.addEventListener("change", () => {
@@ -84,6 +99,18 @@
         status.textContent = "Units saved on this device.";
       } catch (error) {
         status.textContent = "Units applied, but could not be saved on this device.";
+        console.error(status.textContent, error);
+      }
+    });
+
+    measureSelector.addEventListener("change", () => {
+      defaultMeasure = measureSelector.value;
+
+      try {
+        localStorage.setItem(DEFAULT_MEASURE_STORAGE_KEY, defaultMeasure);
+        status.textContent = "Default measure saved on this device.";
+      } catch (error) {
+        status.textContent = "Default measure applied, but could not be saved on this device.";
         console.error(status.textContent, error);
       }
     });
