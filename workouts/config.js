@@ -10,7 +10,7 @@ window.WORKOUT_CONFIG = {
   // Run createMeasurementsForm in setup/create-form.gs and replace this block with its output.
   measurementsForm: {
     formId: "1wl5Jc8tkOkVEc4QwvGtorl9oEyKGoYmL7moCB55aNIs",
-    actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSeykqz6xv9jdJUjENRJ5jBUGQ5jsq7TBpRXCOJoim3_Az57vg/formRespons",
+    actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSeykqz6xv9jdJUjENRJ5jBUGQ5jsq7TBpRXCOJoim3_Az57vg/formResponse",
     fields: {
       email: "entry.1909002342",
       measurementId: "entry.1700252134",

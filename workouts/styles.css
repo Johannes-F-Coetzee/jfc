@@ -518,6 +518,11 @@ a {
   flex-basis: 100%;
 }
 
+.toolbar .field.inline {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .field.inline {
   flex-direction: row;
   align-items: center;
