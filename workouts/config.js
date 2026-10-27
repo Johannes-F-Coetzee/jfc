@@ -9,32 +9,31 @@ window.WORKOUT_CONFIG = {
 
   // Run createMeasurementsForm in setup/create-form.gs and replace this block with its output.
   measurementsForm: {
-      formId: "1wl5Jc8tkOkVEc4QwvGtorl9oEyKGoYmL7moCB55aNIs",
-      actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSeykqz6xv9jdJUjENRJ5jBUGQ5jsq7TBpRXCOJoim3_Az57vg/formRespons",
-      fields: {
-        email: "entry.1909002342",
-        measurementId: "entry.1700252134",
-        date: "entry.1572627875",
-        neckCm: "entry.723827793",
-        bicepLCm: "entry.2100569363",
-        bicepRCm: "entry.1757414732",
-        forearmLCm: "entry.638760680",
-        forearmRCm: "entry.1499011081",
-        shouldersCm: "entry.1818035447",
-        chestCm: "entry.681764983",
-        waistCm: "entry.1463500471",
-        bellyCm: "entry.546071577",
-        buttCm: "entry.1293589352",
-        thighLCm: "entry.158230002",
-        thighRCm: "entry.1959648336",
-        calfLCm: "entry.104314781",
-        calfRCm: "entry.1248096544",
-        weightKg: "entry.349622649",
-        sleepHours: "entry.650920054",
-        waterLitres: "entry.438971393",
-        energy: "entry.793785980",
-        mood: "entry.1933251641"
-      }
+    formId: "1wl5Jc8tkOkVEc4QwvGtorl9oEyKGoYmL7moCB55aNIs",
+    actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSeykqz6xv9jdJUjENRJ5jBUGQ5jsq7TBpRXCOJoim3_Az57vg/formRespons",
+    fields: {
+      email: "entry.1909002342",
+      measurementId: "entry.1700252134",
+      date: "entry.1572627875",
+      neckCm: "entry.723827793",
+      bicepLCm: "entry.2100569363",
+      bicepRCm: "entry.1757414732",
+      forearmLCm: "entry.638760680",
+      forearmRCm: "entry.1499011081",
+      shouldersCm: "entry.1818035447",
+      chestCm: "entry.681764983",
+      waistCm: "entry.1463500471",
+      bellyCm: "entry.546071577",
+      buttCm: "entry.1293589352",
+      thighLCm: "entry.158230002",
+      thighRCm: "entry.1959648336",
+      calfLCm: "entry.104314781",
+      calfRCm: "entry.1248096544",
+      weightKg: "entry.349622649",
+      sleepHours: "entry.650920054",
+      waterLitres: "entry.438971393",
+      energy: "entry.793785980",
+      mood: "entry.1933251641"
     }
   },
 
