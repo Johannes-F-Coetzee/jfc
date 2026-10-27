@@ -6,10 +6,72 @@
   --muted: #b89494;
   --accent: #d24542;
   --accent-strong: #930000;
-  --error: #a16207;
+  --on-accent: #ffffff;
+  --ok: #88d9a0;
+  --error: #ffb4ab;
   --warn-bg: #585858;
   --warn-border: #a16207;
+  --exercise-bg: rgba(15, 23, 42, 0.4);
+  --code-bg: rgba(0, 0, 0, 0.3);
+  --row-hover: rgba(255, 255, 255, 0.06);
   color-scheme: dark;
+}
+
+:root[data-theme="dark-green"] {
+  --bg: #0f2a1b;
+  --card: #1e3b2b;
+  --border: #335541;
+  --muted: #94b8a2;
+  --accent: #64c98b;
+  --accent-strong: #176b3a;
+}
+
+:root[data-theme="dark-blue"] {
+  --bg: #0f1b2a;
+  --card: #1e2b3b;
+  --border: #334655;
+  --muted: #94a8c0;
+  --accent: #72b4f4;
+  --accent-strong: #175c9e;
+}
+
+:root[data-theme^="light-"] {
+  --text: #202630;
+  --ok: #236b38;
+  --error: #a32220;
+  --warn-bg: #fff3d6;
+  --warn-border: #976400;
+  --exercise-bg: rgba(255, 255, 255, 0.5);
+  --code-bg: rgba(0, 0, 0, 0.06);
+  --row-hover: rgba(0, 0, 0, 0.04);
+  color-scheme: light;
+}
+
+:root[data-theme="light-red"] {
+  --bg: #fff1f1;
+  --card: #fffafa;
+  --border: #dfbaba;
+  --muted: #795252;
+  --accent: #aa302d;
+  --accent-strong: #930000;
+}
+
+:root[data-theme="light-green"] {
+  --bg: #eff8f1;
+  --card: #fafffb;
+  --border: #b7d5c0;
+  --muted: #4b6955;
+  --accent: #256d3e;
+  --accent-strong: #176b3a;
+}
+
+:root[data-theme="light-blue"] {
+  --bg: #eff6ff;
+  --card: #fafcff;
+  --border: #b9cee2;
+  --muted: #506781;
+  --accent: #245f9e;
+  --accent-strong: #175c9e;
 }
 
 * {
@@ -29,6 +91,7 @@ body {
 }
 
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -81,6 +144,36 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 50%;
+}
+
+.settings-menu {
+  position: relative;
+}
+
+.settings-menu summary {
+  list-style: none;
+}
+
+.settings-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-menu summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settings-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: min(19rem, calc(100vw - 2rem));
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.settings-panel .status {
+  font-size: 0.85rem;
 }
 
 main {
@@ -183,7 +276,7 @@ input[type="range"] {
 
 .btn.primary {
   background: var(--accent-strong);
-  color: var(--text);
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -228,7 +321,7 @@ input[type="range"] {
   border-radius: 10px;
   padding: 0.75rem;
   margin-top: 0.75rem;
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--exercise-bg);
 }
 
 .exercise-head {
@@ -284,7 +377,7 @@ input[type="range"] {
 
 .set-timer.running {
   background: var(--error);
-  color: var(--text);
+  color: var(--bg);
 }
 
 .rpe {
@@ -330,7 +423,7 @@ input[type="range"] {
 }
 
 .status.ok {
-  color: var(--accent-strong);
+  color: var(--ok);
 }
 
 .status.error,
@@ -373,7 +466,7 @@ small {
 }
 
 code {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--code-bg);
   padding: 0 0.25rem;
   border-radius: 4px;
 }
@@ -470,7 +563,7 @@ th {
 }
 
 tbody tr:hover {
-  background: rgba(56, 189, 248, 0.06);
+  background: var(--row-hover);
 }
 
 .up {
@@ -515,6 +608,14 @@ tbody tr:hover {
 }
 
 @media (max-width: 700px) {
+  .settings-menu {
+    position: static;
+  }
+
+  .settings-panel {
+    right: 1rem;
+  }
+
   .chart text {
     font-size: 20px;
   }

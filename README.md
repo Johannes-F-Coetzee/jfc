@@ -19,6 +19,7 @@ Static GitHub Pages site.
 - **Export configurations (JSON)** downloads all complete configurations from the last successful form load in the legacy `{"routines": [...]}` format. It does not include unsaved changes in the editor, author/time metadata, or incomplete/conflicting configurations (which are reported in the status). The download is still named `routines.json`, but the site no longer reads a routines file.
 - An **estimated time** is shown next to *Submit workout*. Timed sets count as entered, each rep counts as 10 seconds, and 1 minute of rest is added between consecutive sets.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
+- **Settings** on both Log and Trends includes six themes: Dark Red (the default), Dark Green, Dark Blue, Light Red, Light Green, and Light Blue. Changes apply immediately and are remembered on this device across both pages, without requiring sign-in.
 
 ### Trends page
 
@@ -63,6 +64,7 @@ Reading responses requires **edit access to the form**. **Load my data** always 
 Local testing: `python -m http.server 8000`, then open <http://localhost:8000/workouts/>. Use an HTTP origin authorized for the OAuth client rather than opening the page directly with `file://`.
 
 Configuration regression tests (Node.js): `node --test workouts/tests/routines.test.cjs`.
+Theme/settings regression tests (Node.js): `node --test workouts/tests/settings.test.cjs`.
 
 ### Configuration saves and recovery
 

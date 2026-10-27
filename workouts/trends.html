@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Workout Trends</title>
   <link rel="icon" href="excersise_favicon.svg" type="image/svg+xml">
+  <script src="settings.js"></script>
   <link rel="stylesheet" href="styles.css">
   <script src="config.js"></script>
   <script src="auth.js" defer></script>
@@ -19,6 +20,28 @@
     <a class="brand" href="../">&larr; Home</a>
     <h1>Workout Trends</h1>
     <nav class="nav"><a href="./">Log</a><a href="trends.html" aria-current="page">Trends</a></nav>
+    <details id="settings-menu" class="settings-menu">
+      <summary class="btn ghost small">Settings</summary>
+      <div class="settings-panel card">
+        <h2>Settings</h2>
+        <label class="field" for="theme-select">Theme
+          <select id="theme-select">
+            <optgroup label="Dark">
+              <option value="dark-red">Dark Red</option>
+              <option value="dark-green">Dark Green</option>
+              <option value="dark-blue">Dark Blue</option>
+            </optgroup>
+            <optgroup label="Light">
+              <option value="light-red">Light Red</option>
+              <option value="light-green">Light Green</option>
+              <option value="light-blue">Light Blue</option>
+            </optgroup>
+          </select>
+        </label>
+        <p class="muted">Applies to Log and Trends on this device.</p>
+        <p id="settings-status" class="status" role="status" aria-live="polite"></p>
+      </div>
+    </details>
     <div id="user-box" class="user-box" hidden>
       <img id="user-avatar" alt="" referrerpolicy="no-referrer">
       <span id="user-name"></span>
