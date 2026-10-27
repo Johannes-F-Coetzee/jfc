@@ -377,8 +377,14 @@
     bestRepetitions: { label: "Best set (reps)", format: value => formatNumber(value, 0) },
     totalDurationSeconds: { label: "Total time", format: formatDuration },
     bestDurationSeconds: { label: "Best set (time)", format: formatDuration },
-    maximumWeight: { label: "Max weight (kg)", format: value => formatNumber(value) },
-    volume: { label: "Volume (reps × kg)", format: value => formatNumber(value, 0) },
+    maximumWeight: {
+      get label() { return `Max weight (${WorkoutSettings.weightUnit})`; },
+      format: value => formatNumber(WorkoutSettings.weightFromKg(value))
+    },
+    volume: {
+      get label() { return `Volume (reps × ${WorkoutSettings.weightUnit})`; },
+      format: value => formatNumber(WorkoutSettings.weightFromKg(value), 0)
+    },
     averagePerceivedExertion: { label: "Average perceived difficulty", format: value => formatNumber(value) }
   };
 
@@ -523,7 +529,7 @@
         <td>${escapeMarkup(session.date)}</td><td>${escapeMarkup(session.routine || "–")}</td><td>${session.sets}</td>
         <td>${includesTimedSets ? formatDuration(session.totalDurationSeconds) : formatNumber(session.totalRepetitions, 0)}</td>
         <td>${includesTimedSets ? formatDuration(session.bestDurationSeconds) : formatNumber(session.bestRepetitions, 0)}</td>
-        <td>${Number.isFinite(session.maximumWeight) ? `${formatNumber(session.maximumWeight)} kg` : "–"}</td>
+        <td>${Number.isFinite(session.maximumWeight) ? `${formatNumber(WorkoutSettings.weightFromKg(session.maximumWeight))} ${WorkoutSettings.weightUnit}` : "–"}</td>
         <td>${formatNumber(session.averagePerceivedExertion)}</td></tr>`).join("")}</tbody>` : "";
   }
 
@@ -570,7 +576,7 @@
         <td>${exerciseSummary.includesTimedSets
           ? timeTrendCell(exerciseSummary.change)
           : trendCell(exerciseSummary.change)}</td>
-        <td>${Number.isFinite(exerciseSummary.maximumWeight) ? `${formatNumber(exerciseSummary.maximumWeight)} kg` : "–"}</td>
+        <td>${Number.isFinite(exerciseSummary.maximumWeight) ? `${formatNumber(WorkoutSettings.weightFromKg(exerciseSummary.maximumWeight))} ${WorkoutSettings.weightUnit}` : "–"}</td>
         <td>${formatNumber(exerciseSummary.averagePerceivedExertion)}</td>
       </tr>`).join("")}</tbody>`
       : `<tbody><tr><td class="muted">No exercises in this period.</td></tr></tbody>`;
@@ -704,6 +710,11 @@
   $("#user-select").addEventListener("change", applyUser);
   $("#exercise-select").addEventListener("change", renderExerciseTrend);
   $("#metric-select").addEventListener("change", renderExerciseTrend);
+  document.addEventListener("workout:unitschange", () => {
+    if (!$("#results").hidden) {
+      render();
+    }
+  });
   $("#exercises-table").addEventListener("click", event => {
     const link = event.target.closest(".ex-link");
 

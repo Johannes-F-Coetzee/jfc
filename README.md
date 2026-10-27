@@ -20,6 +20,7 @@ Static GitHub Pages site.
 - An **estimated time** is shown next to *Submit workout*. Timed sets count as entered, each rep counts as 10 seconds, and 1 minute of rest is added between consecutive sets.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
 - **Settings** on both Log and Trends includes six themes: Dark Red (the default), Dark Green, Dark Blue, Light Red, Light Green, and Light Blue. Changes apply immediately and are remembered on this device across both pages, without requiring sign-in.
+- **Units** in Settings selects Metric (kg, the default) or Imperial (lb) for weight entry, trend tables, and weight/volume charts. Switching units converts current entries without clearing the workout. The preference is remembered on this device across both pages; drafts, queued submissions, shared configurations, and exports continue to store kilograms for compatibility.
 
 ### Trends page
 

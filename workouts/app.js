@@ -142,11 +142,30 @@
     });
   }
 
+  function setWeightInput(setElement, weightKg) {
+    const input = $(".set-weight", setElement);
+    input.value = weightKg == null ? "" : Number(WorkoutSettings.weightFromKg(weightKg).toFixed(4));
+    input.dataset.weightKg = weightKg == null ? "" : String(weightKg);
+    input.dataset.displayedWeight = input.value;
+    $(".weight-label", setElement).textContent = `Weight (${WorkoutSettings.weightUnit})`;
+  }
+
+  function readWeightInput(input, units = WorkoutSettings.units) {
+    if (input.value === "") {
+      return null;
+    }
+
+    // Keep the original kilograms when only the rounded display has changed units.
+    return input.value === input.dataset.displayedWeight
+      ? Number(input.dataset.weightKg)
+      : WorkoutSettings.weightToKg(Number(input.value), units);
+  }
+
   function addSet(exerciseElement, data = {}) {
     const setElement = $("#set-template").content.firstElementChild.cloneNode(true);
     $(".set-reps", setElement).value = data.reps ?? "";
     $(".set-time", setElement).value = data.durationSeconds != null ? formatDuration(data.durationSeconds) : "";
-    $(".set-weight", setElement).value = data.weightKg ?? "";
+    setWeightInput(setElement, data.weightKg);
     $(".set-rpe", setElement).value = data.rpe ?? 5;
     $(".set-notes", setElement).value = data.notes ?? "";
     updatePerceivedExertionLabel(setElement);
@@ -213,12 +232,11 @@
           measure,
           sets: $$(".set", exerciseElement).map(setElement => {
             const repetitionCount = $(".set-reps", setElement).value;
-            const weight = $(".set-weight", setElement).value;
 
             return {
               reps: measure === "reps" && repetitionCount !== "" ? Number(repetitionCount) : null,
               durationSeconds: measure === "time" ? parseDuration($(".set-time", setElement).value) : null,
-              weightKg: weight !== "" ? Number(weight) : null,
+              weightKg: readWeightInput($(".set-weight", setElement)),
               rpe: Number($(".set-rpe", setElement).value),
               notes: $(".set-notes", setElement).value.trim()
             };
@@ -568,6 +586,13 @@
 
   // ---------- event wiring ----------
   function wireEvents() {
+    document.addEventListener("workout:unitschange", event => {
+      $$("#exercises .set").forEach(setElement => {
+        const weightKg = readWeightInput($(".set-weight", setElement), event.detail.previousUnits);
+        setWeightInput(setElement, weightKg);
+      });
+    });
+
     const form = $("#workout-form");
     form.addEventListener("submit", submitWorkout);
     form.addEventListener("input", event => {
