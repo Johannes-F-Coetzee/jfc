@@ -75,7 +75,19 @@
     $("#submit-workout").disabled = !hasFormConfig();
     refreshRoutineList();
     updateRoutineButtons();
-    setRoutineStatus("Load shared configurations to choose a workout saved by any user.");
+    
+    if (WorkoutRoutines.isConfigured() && WorkoutRoutines.hasCachedToken()) {
+      runRoutineAction(async signedInUser => {
+        const catalog = await WorkoutRoutines.load();
+
+        if (currentUser === signedInUser) {
+          applyRoutineCatalog(catalog);
+        }
+      });
+    } else {
+      setRoutineStatus("Load shared configurations to choose a workout saved by any user.");
+    }
+    
     renderHistory();
     updateQueueUi();
     flushQueue();
@@ -87,6 +99,7 @@
     routinesLoaded = false;
     refreshRoutineList();
     refreshExerciseNames();
+    WorkoutRoutines.clearCachedToken();
     $("#tracker-view").hidden = true;
   }
 

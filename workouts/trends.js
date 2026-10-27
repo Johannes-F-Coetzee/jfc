@@ -5,7 +5,8 @@
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
   const FORMS_READ_PERMISSIONS = WorkoutForms.READ_PERMISSIONS;
   const GOOGLE_FORMS_REQUEST_ERROR = WorkoutForms.RequestError;
-  const SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
+  const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
+  const LEGACY_SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
   const SECONDS_PER_REPETITION = 10;
   const REST_SECONDS_BETWEEN_SETS = 60;
 
@@ -70,7 +71,11 @@
   // ---------- access token ----------
   function cachedToken() {
     try {
-      const cachedAccessToken = JSON.parse(sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) || "null");
+      const cachedAccessToken = JSON.parse(
+        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
+        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
+        "null"
+      );
 
       if (cachedAccessToken && cachedAccessToken.email === WorkoutAuth.user?.email &&
           cachedAccessToken.expiresAt > Date.now() + 60000) {
@@ -97,6 +102,7 @@
       email: WorkoutAuth.user.email,
       expiresAt: Date.now() + 55 * 60000
     }));
+    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
 
     return token;
   }
@@ -202,6 +208,7 @@
 
   function handleLoadError(error, interactive) {
     sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
 
     if (error instanceof GOOGLE_FORMS_REQUEST_ERROR ) {
       if (error.reason === "SERVICE_DISABLED" || error.reason === "accessNotConfigured") {
@@ -695,6 +702,7 @@
 
   function onSignOut() {
     sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
     rows = [];
     allRows = [];
     $("#user-select").innerHTML = "";

@@ -3,6 +3,8 @@
 
   const CONFIGURATION = window.WORKOUT_CONFIG?.configurationForm || {};
   const PENDING_STORAGE_KEY = "workout.pendingConfiguration";
+  const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
+  const LEGACY_SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
   const QUESTION_FIELD_NAMES = {
     "email": "email", "configuration id": "configurationId", "routine": "routine",
     "total sets": "totalSets", "estimated time (seconds)": "estimatedSeconds",
@@ -20,6 +22,29 @@
       Object.values(QUESTION_FIELD_NAMES).every(field => /^entry\.\d+$/.test(CONFIGURATION.fields?.[field] || ""));
   }
 
+  function hasCachedToken() {
+    try {
+      const cachedAccessToken = JSON.parse(
+        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
+        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
+        "null"
+      );
+
+      return cachedAccessToken?.email === WorkoutAuth.user?.email &&
+        cachedAccessToken.expiresAt > Date.now() + 60000;
+    } catch {
+      return false;
+    }
+  }
+
+  function clearCachedToken() {
+    accessToken = null;
+    tokenEmail = "";
+    tokenExpiresAt = 0;
+    sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+  }
+
   async function getToken() {
     if (!WorkoutAuth.user) {
       throw new Error("Sign in before loading or saving configurations.");
@@ -29,10 +54,34 @@
       throw new Error("Set up configurationForm in workouts/config.js using createWorkoutConfigurationForm.");
     }
 
+    try {
+      const cachedAccessToken = JSON.parse(
+        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
+        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
+        "null"
+      );
+
+      if (cachedAccessToken?.email === WorkoutAuth.user.email &&
+          cachedAccessToken.expiresAt > Date.now() + 60000) {
+        accessToken = cachedAccessToken.token;
+        tokenEmail = cachedAccessToken.email;
+        tokenExpiresAt = cachedAccessToken.expiresAt;
+        sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify(cachedAccessToken));
+        sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+      }
+    } catch {
+      sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
+    }
+
     if (!accessToken || tokenEmail !== WorkoutAuth.user.email || tokenExpiresAt <= Date.now()) {
       accessToken = await WorkoutAuth.requestAccessToken(WorkoutForms.READ_PERMISSIONS);
       tokenEmail = WorkoutAuth.user.email;
       tokenExpiresAt = Date.now() + 55 * 60000;
+      sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify({
+        token: accessToken,
+        email: tokenEmail,
+        expiresAt: tokenExpiresAt
+      }));
     }
 
     return accessToken;
@@ -191,6 +240,7 @@
       if (error instanceof WorkoutForms.RequestError) {
         if (error.status === 401) {
           accessToken = null;
+          sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
         }
 
         throw new Error(`Could not read the configuration form: ${error.message}. ` +
@@ -265,5 +315,5 @@
     }
   }
 
-  window.WorkoutRoutines = { isConfigured, load, save };
+  window.WorkoutRoutines = { isConfigured, hasCachedToken, clearCachedToken, load, save };
 })();

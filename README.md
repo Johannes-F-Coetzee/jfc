@@ -16,7 +16,7 @@ Static GitHub Pages site.
 - **Google sign-in** (Google Identity Services). An optional email allow-list restricts access.
 - Per exercise you choose **Reps** or **Time**, then log each set. Each set records reps or duration (with a built-in stopwatch), optional weight, **perceived difficulty (RPE 1–10)**, and notes.
 - **Google Forms backend**: every set is posted as one form response, so the linked Google Sheet gets one row per set.
-- **Shared workout configurations** live in a separate Google Form, with one response per set. **Load shared configurations** reads all users' configurations; choose a name and press **Load configured routine** to fill the workout. **Save configuration** saves the current exercises and sets under a unique name, together with the signed-in person's email and the estimated workout time in seconds. Configurations cannot be edited, overwritten, or deleted from the site; use a new name to save a variation.
+- **Shared workout configurations** live in a separate Google Form, with one response per set. After read access has been granted, configurations load automatically when you sign in; **Load shared configurations** can also refresh them manually. Choose a name and press **Load configured routine** to fill the workout. **Save configuration** saves the current exercises and sets under a unique name, together with the signed-in person's email and the estimated workout time in seconds. Configurations cannot be edited, overwritten, or deleted from the site; use a new name to save a variation.
 - **Export configurations (JSON)** downloads all complete configurations from the last successful form load in the legacy `{"routines": [...]}` format. It does not include unsaved changes in the editor, author/time metadata, or incomplete/conflicting configurations (which are reported in the status). The download is still named `routines.json`, but the site no longer reads a routines file.
 - An **estimated time** is shown next to *Submit workout*. Timed sets count as entered, each rep counts as 10 seconds, and 1 minute of rest is added between consecutive sets.
 - The in-progress workout is auto-saved as a draft, and submissions made while offline are queued and retried.
@@ -33,7 +33,7 @@ Static GitHub Pages site.
 - a per-exercise chart and table: total reps, best set, max weight, volume, time, and average difficulty
 - an all-exercises overview with the change since the previous workout
 
-Reading responses requires **edit access to the form**. **Load my data** always re-reads the form and all responses from Google (bypassing the browser cache), discarding previously loaded results; the status line shows when the data was loaded. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
+Reading responses requires **edit access to the form**. Trends loads automatically on sign-in when a valid Forms API token is available; **Load my data** can also re-read the form and all responses from Google (bypassing the browser cache), discarding previously loaded results. The status line shows when the data was loaded. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
 
 ### Measurements page
 
@@ -70,7 +70,7 @@ To configure measurements, run **`createMeasurementsForm`** from [`workouts/setu
    - Set `form.formId` in [`workouts/config.js`](workouts/config.js). This is the ID in the form **editor** URL (`docs.google.com/forms/d/<formId>/edit`), not the `/d/e/...` published ID. `create-form.gs` logs it for you.
    - In Cloud Console, enable the **Google Forms API** (*APIs & Services → Library*).
    - On the OAuth consent screen, add the scopes `https://www.googleapis.com/auth/forms.body.readonly` and `https://www.googleapis.com/auth/forms.responses.readonly`. While the app is in *Testing*, also add each user as a *test user*.
-   - These scopes are required for shared configuration loading/saving too. Press **Load shared configurations** to grant consent; no permission popup is opened automatically on sign-in.
+   - These scopes are required for shared configuration loading/saving too. The first time, press **Load shared configurations** on the tracker or **Load my data** on Trends to grant consent; afterward, data loads automatically on sign-in while the permission token is valid.
 
 5. **Publish**: commit and push, and make sure GitHub Pages is enabled for the branch under *Settings → Pages*. The tracker is served at `https://johannes-f-coetzee.github.io/jfc.github.io/workouts/`.
 
