@@ -634,6 +634,10 @@
       return;
     }
 
+    if (!WORKOUT_UTILITIES.confirmFutureDate(workout.date)) {
+      return;
+    }
+
     const { sessionId, rows } = buildRows(workout);
     writeQueue(readQueue().concat(rows));
     updateQueueUi();

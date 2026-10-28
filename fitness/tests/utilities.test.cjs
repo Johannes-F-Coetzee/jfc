@@ -21,3 +21,19 @@ test("formats a local date using the date's timezone offset", () => {
   };
   assert.equal(window.WorkoutUtilities.getLocalDateString(date), "2025-12-31");
 });
+
+test("confirms future dates while allowing today and earlier dates without a prompt", () => {
+  const confirmations = [];
+  window.confirm = message => {
+    confirmations.push(message);
+
+    return false;
+  };
+
+  assert.equal(window.WorkoutUtilities.confirmFutureDate("2026-10-27", "2026-10-28"), true);
+  assert.equal(window.WorkoutUtilities.confirmFutureDate("2026-10-28", "2026-10-28"), true);
+  assert.equal(window.WorkoutUtilities.confirmFutureDate("2026-10-29", "2026-10-28"), false);
+  assert.deepEqual(confirmations, [
+    "The selected date (2026-10-29) is in the future. Submit anyway?"
+  ]);
+});

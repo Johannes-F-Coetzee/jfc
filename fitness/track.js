@@ -44,6 +44,7 @@
     return { weight: "weightKg", sleep: "sleepHours", water: "waterLitres" }[field.key] || field.key;
   });
   const REQUIRED_FORM_FIELDS = ["email", "measurementId", "date", ...FORM_FIELD_NAMES];
+  const MEASUREMENT_QUESTION_FIELD_NAMES = { email: "email", "measurement date": "date" };
   const ACTIVE_SUBMISSIONS = new Set();
   const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
   const WORKOUT_UTILITIES = window.WorkoutUtilities;
@@ -54,6 +55,8 @@
   let records = [];
   let storageKey = "";
   let clearedFields = null;
+  let existingDates = new Set();
+  let existingDatesLoading = false;
 
   function hasFormConfiguration() {
     return window.WorkoutForms.hasSubmissionConfiguration(FORM_CONFIGURATION, {
@@ -262,6 +265,77 @@
     SUBMISSION_STATUS.set($("#measurement-status"), message, isError ? "error" : "ok");
   }
 
+  function showDateDataStatus(message, isError = false) {
+    const status = $("#measurement-data-status");
+    status.textContent = message;
+    status.className = `status${isError ? " error" : ""}`;
+  }
+
+  function updateDateIndicator() {
+    const dateInput = $("#measurement-date");
+    const status = $("#measurement-date-status");
+    const hasExistingRecord = existingDates.has(dateInput.value);
+    dateInput.dataset.existingRecord = String(hasExistingRecord);
+    dateInput.title = hasExistingRecord ? "A measurement record already exists for this date." : "";
+    status.hidden = !hasExistingRecord;
+    status.textContent = hasExistingRecord
+      ? "A measurement record already exists for this date. Submitting will add another response."
+      : "";
+  }
+
+  async function loadExistingDates(ownerKey) {
+    const owner = window.WorkoutAuth.user;
+    const ownerEmail = owner?.email;
+    existingDates = new Set(records.map(record => record.date));
+    existingDatesLoading = true;
+    updateDateIndicator();
+    showDateDataStatus("Checking your saved measurements…");
+    updateQueue();
+
+    try {
+      if (!FORM_CONFIGURATION.formId) {
+        throw new Error("The measurements form ID is not configured.");
+      }
+
+      const { responses, questionMap } = await window.WorkoutForms.readForm(
+        FORM_CONFIGURATION,
+        MEASUREMENT_QUESTION_FIELD_NAMES,
+        {
+          requiredFields: ["email", "date"],
+          missingFieldsMessage: "The measurements form must include email and date questions.",
+          retryUnauthorized: true
+        }
+      );
+
+      if (storageKey !== ownerKey || window.WorkoutAuth.user !== owner) {
+        return;
+      }
+
+      responses.forEach(response => {
+        const row = window.WorkoutForms.decodeResponse(response, questionMap);
+        const email = (row.email || "").trim().toLowerCase();
+
+        if (email === ownerEmail.trim().toLowerCase() && /^\d{4}-\d{2}-\d{2}$/.test(row.date || "")) {
+          existingDates.add(row.date);
+        }
+      });
+      showDateDataStatus("Checked saved measurements for this account.");
+    } catch (error) {
+      if (storageKey !== ownerKey || window.WorkoutAuth.user !== owner) {
+        return;
+      }
+
+      console.error("Could not check existing measurement dates.", error);
+      showDateDataStatus(`Could not check existing measurement dates in Google Forms. ${error.message}`, true);
+    } finally {
+      if (storageKey === ownerKey && window.WorkoutAuth.user === owner) {
+        existingDatesLoading = false;
+        updateDateIndicator();
+        updateQueue();
+      }
+    }
+  }
+
   function readRecords(key) {
     const saved = localStorage.getItem(key);
     const loadedRecords = saved === null ? [] : JSON.parse(saved);
@@ -304,7 +378,8 @@
     $("#measurement-queue-text").textContent = `${count} measurement submission${count === 1 ? "" : "s"} waiting to be sent.`;
     $("#retry-measurements").disabled = ACTIVE_SUBMISSIONS.has(storageKey) || !hasFormConfiguration();
     $("#submit-measurements").disabled = !storageKey || !hasFormConfiguration() ||
-      $("#measurement-form").dataset.storageUnavailable === "true" || ACTIVE_SUBMISSIONS.has(storageKey);
+      $("#measurement-form").dataset.storageUnavailable === "true" || ACTIVE_SUBMISSIONS.has(storageKey) ||
+      existingDatesLoading;
   }
 
   async function flushQueue() {
@@ -385,14 +460,19 @@
     $("#measurements-view").hidden = false;
     storageKey = STORAGE_PREFIX + encodeURIComponent(window.WorkoutAuth.user.email.toLowerCase());
     records = [];
+    existingDates = new Set();
+    existingDatesLoading = false;
     $("#measurement-history").replaceChildren();
     clearFields();
     $("#measurement-form").dataset.storageUnavailable = String(!loadRecords());
     updateQueue();
+    const existingDatesPromise = loadExistingDates(storageKey);
 
     if ($("#measurement-form").dataset.storageUnavailable !== "true") {
       retryQueue();
     }
+
+    return existingDatesPromise;
   }
 
   function hideTracker() {
@@ -400,8 +480,11 @@
     $("#login-view").hidden = false;
     records = [];
     storageKey = "";
+    existingDates = new Set();
+    existingDatesLoading = false;
     clearFields();
     $("#measurement-history").replaceChildren();
+    showDateDataStatus("");
     updateQueue();
   }
 
@@ -414,6 +497,7 @@
       delete input.dataset.displayValue;
     });
     $("#measurement-date").value = WORKOUT_UTILITIES.getLocalDateString();
+    updateDateIndicator();
     $("#measurement-status").textContent = "";
     $("#measurement-status").className = "status";
   }
@@ -444,6 +528,7 @@
     }
 
     $("#measurement-date").value = clearedFields.date;
+    updateDateIndicator();
     FIELD_DEFINITIONS.forEach(field => {
       const value = clearedFields.values[field.key];
       const convertUnits = value !== "" && field.kind === "number" && clearedFields.units !== currentUnits();
@@ -503,6 +588,15 @@
       return;
     }
 
+    if (existingDates.has(date) &&
+      !window.confirm(`A measurement record already exists for ${date}. Submit anyway? This will add another response.`)) {
+      return;
+    }
+
+    if (!WORKOUT_UTILITIES.confirmFutureDate(date)) {
+      return;
+    }
+
     const row = {
       email: window.WorkoutAuth.user.email,
       measurementId: crypto.randomUUID(),
@@ -530,6 +624,8 @@
       // Persist history and its pending submission together before making a network request.
       localStorage.setItem(storageKey, JSON.stringify(latestRecords));
       records = latestRecords;
+      existingDates.add(date);
+      updateDateIndicator();
     } catch (error) {
       console.error("Could not queue measurements.", error);
       showStatus("Measurements could not be saved on this device. Nothing was sent. Check browser storage.", true);
@@ -566,6 +662,8 @@
   document.addEventListener("DOMContentLoaded", () => {
     renderFields();
     $("#measurement-date").value = WORKOUT_UTILITIES.getLocalDateString();
+    $("#measurement-date").addEventListener("input", updateDateIndicator);
+    $("#measurement-date").addEventListener("change", updateDateIndicator);
     $("#measurement-form").addEventListener("submit", saveEntry);
     $("#measurement-form").addEventListener("input", event => {
       if (event?.target?.dataset.field) {

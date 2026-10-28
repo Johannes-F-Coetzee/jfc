@@ -101,8 +101,10 @@
           </details>
         </div>
         <label class="field" for="measurement-date">Date
-          <input type="date" id="measurement-date" required>
+          <input type="date" id="measurement-date" aria-describedby="measurement-date-status" required>
         </label>
+        <p id="measurement-data-status" class="status" role="status" aria-live="polite"></p>
+        <p id="measurement-date-status" class="status error" role="status" aria-live="polite" hidden></p>
         <div id="measurement-fields" class="measurement-fields"></div>
         <div class="submit-row">
           <button type="submit" id="submit-measurements" class="btn primary">Submit measurements</button>

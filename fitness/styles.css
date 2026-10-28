@@ -348,6 +348,10 @@ textarea:focus {
   outline-offset: 0;
 }
 
+#measurement-date[data-existing-record="true"] {
+  border-color: var(--error);
+}
+
 input[type="range"] {
   padding: 0;
   accent-color: var(--accent);

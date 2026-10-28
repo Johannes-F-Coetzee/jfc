@@ -23,6 +23,7 @@ function createEnvironment(options = {}) {
   const requests = [];
   const storage = options.storage || new Map();
   const errors = [];
+  const confirmations = [];
   const controls = { failNetwork: false, failWrite: false };
   let handlers;
   let units = options.units || "metric";
@@ -46,6 +47,7 @@ function createEnvironment(options = {}) {
 
   [
     "measurement-fields", "measurement-date", "measurement-form", "measurement-status",
+    "measurement-data-status", "measurement-date-status",
     "measurement-history", "measurement-queue", "measurement-queue-text", "submit-measurements",
     "retry-measurements", "clear-measurements", "undo-clear-measurements", "measurements-view", "login-view", "setup-warning"
   ].forEach(name => elements.set(`#${name}`, createElement()));
@@ -60,6 +62,13 @@ function createEnvironment(options = {}) {
     WorkoutAuth: {
       user: null,
       init(pageHandlers) { handlers = pageHandlers; }
+    },
+    confirm: message => {
+      confirmations.push(message);
+
+      return message.includes("future")
+        ? options.confirmFutureDate !== false
+        : options.confirmDuplicateDate !== false;
     },
     addEventListener: (name, callback) => { events[name] = callback; }
   };
@@ -97,15 +106,20 @@ function createEnvironment(options = {}) {
   };
   for (const filename of ["utilities.js", "google-forms.js", "submission-status.js", "track.js"]) {
     runInNewContext(readFileSync(path.join(__dirname, "..", filename), "utf8"), context);
+
+    if (filename === "google-forms.js" && options.readForm) {
+      window.WorkoutForms.readForm = options.readForm;
+    }
   }
   events.DOMContentLoaded();
   const element = name => elements.get(`#${name}`);
 
   return {
-    element, requests, storage, controls, errors, events,
+    element, requests, storage, controls, errors, events, confirmations,
     signIn(email = "current@example.com") {
       window.WorkoutAuth.user = { email };
-      handlers.onSignIn();
+
+      return handlers.onSignIn();
     },
     signOut() {
       window.WorkoutAuth.user = null;
@@ -115,6 +129,10 @@ function createEnvironment(options = {}) {
       const input = element(`measurement-${field}`);
       input.value = String(value);
       element("measurement-form").events.input({ target: input });
+
+      if (field === "date") {
+        input.events.input();
+      }
     },
     submit: () => element("measurement-form").events.submit({ preventDefault() {} }),
     retry: () => element("retry-measurements").events.click(),
@@ -166,6 +184,66 @@ test("sends one complete metric response through the shared Forms helper", async
   assert.ok(request.body.get(CONFIGURATION.fields.measurementId));
   assert.equal(environment.records()[0].pendingSubmissions.length, 0);
   assert.match(environment.element("measurement-status").textContent, /Measurement submission sent/);
+});
+
+test("requires confirmation before saving measurements dated in the future", async () => {
+  const environment = createEnvironment({ confirmFutureDate: false });
+  environment.signIn();
+  environment.set("date", "9999-12-31");
+  environment.set("weight", 80);
+
+  await environment.submit();
+
+  assert.deepEqual(environment.confirmations, [
+    "The selected date (9999-12-31) is in the future. Submit anyway?"
+  ]);
+  assert.equal(environment.requests.length, 0);
+  assert.deepEqual(environment.records(), []);
+});
+
+test("marks dates with this user's existing measurements and warns before adding another response", async () => {
+  const date = "2026-10-25";
+  const environment = createEnvironment({
+    configuration: { ...CONFIGURATION, formId: "measurements-form" },
+    confirmDuplicateDate: false,
+    readForm: async () => ({
+      responses: [
+        {
+          answers: {
+            "email-question": { textAnswers: { answers: [{ value: " Current@Example.com " }] } },
+            "date-question": { textAnswers: { answers: [{ value: date }] } }
+          }
+        },
+        {
+          answers: {
+            "email-question": { textAnswers: { answers: [{ value: "another@example.com" }] } },
+            "date-question": { textAnswers: { answers: [{ value: "2026-10-26" }] } }
+          }
+        }
+      ],
+      questionMap: new Map([["email-question", "email"], ["date-question", "date"]])
+    })
+  });
+
+  await environment.signIn();
+  environment.set("date", date);
+
+  assert.equal(environment.element("measurement-date").dataset.existingRecord, "true");
+  assert.equal(environment.element("measurement-date-status").hidden, false);
+  assert.match(environment.element("measurement-date-status").textContent, /already exists/);
+
+  environment.set("weight", 80);
+  await environment.submit();
+
+  assert.deepEqual(environment.confirmations, [
+    `A measurement record already exists for ${date}. Submit anyway? This will add another response.`
+  ]);
+  assert.equal(environment.requests.length, 0);
+  assert.deepEqual(environment.records(), []);
+
+  environment.set("date", "2026-10-26");
+  assert.equal(environment.element("measurement-date").dataset.existingRecord, "false");
+  assert.equal(environment.element("measurement-date-status").hidden, true);
 });
 
 test("converts imperial input to canonical form units and preserves zero and optional blanks", async () => {

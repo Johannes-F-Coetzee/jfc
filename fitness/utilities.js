@@ -10,5 +10,13 @@
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
-  window.WorkoutUtilities = { escapeHtml, getLocalDateString };
+  function confirmFutureDate(date, today = getLocalDateString()) {
+    if (date <= today) {
+      return true;
+    }
+
+    return window.confirm(`The selected date (${date}) is in the future. Submit anyway?`);
+  }
+
+  window.WorkoutUtilities = { escapeHtml, getLocalDateString, confirmFutureDate };
 })();
