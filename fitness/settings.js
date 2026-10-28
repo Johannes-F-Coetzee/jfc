@@ -7,8 +7,8 @@
   const DEFAULT_MEASURE_STORAGE_KEY = "workout.defaultMeasure";
   const KILOGRAMS_PER_POUND = 0.45359237;
   const THEMES = new Set([
-    "dark-red", "dark-green", "dark-blue",
-    "light-red", "light-green", "light-blue"
+    "dark-red", "dark-green", "dark-blue", "dark-grey",
+    "light-red", "light-green", "light-blue", "light-grey"
   ]);
   let theme = DEFAULT_THEME;
   let units = "metric";
