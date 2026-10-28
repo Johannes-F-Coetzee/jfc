@@ -6,10 +6,7 @@
   const MEASUREMENTS_FORM_CONFIGURATION = WORKOUT_CONFIGURATION.measurementsForm || {};
   const WORKOUT_UTILITIES = window.WorkoutUtilities;
   const escapeMarkup = WORKOUT_UTILITIES.escapeHtml;
-  const FORMS_READ_PERMISSIONS = WorkoutForms.READ_PERMISSIONS;
   const GOOGLE_FORMS_REQUEST_ERROR = WorkoutForms.RequestError;
-  const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
-  const LEGACY_SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
   const SECONDS_PER_REPETITION = 10;
   const REST_SECONDS_BETWEEN_SETS = 60;
 
@@ -82,6 +79,8 @@
   let measurementLoadError = "";
   let loadedAt = null;
   let loading = false;
+  let loadingUser = null;
+  let loadVersion = 0;
 
   // ---------- helpers ----------
   function formatDuration(secondsToFormat) {
@@ -121,59 +120,12 @@
     $("#trends-empty").hidden = true;
   }
 
-  // ---------- access token ----------
-  function cachedToken() {
-    try {
-      const cachedAccessToken = JSON.parse(
-        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
-        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
-        "null"
-      );
-
-      if (cachedAccessToken && cachedAccessToken.email === WorkoutAuth.user?.email &&
-          cachedAccessToken.expiresAt > Date.now() + 60000) {
-        return cachedAccessToken.token;
-      }
-    } catch { /* ignore */ }
-
-    return null;
-  }
-
-  async function getToken(forceNew) {
-    if (!forceNew) {
-      const token = cachedToken();
-
-      if (token) {
-        return token;
-      }
-    }
-
-    const token = await WorkoutAuth.requestAccessToken(FORMS_READ_PERMISSIONS);
-    // Google sign-in access tokens last one hour.
-    sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify({
-      token,
-      email: WorkoutAuth.user.email,
-      expiresAt: Date.now() + 55 * 60000
-    }));
-    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
-
-    return token;
-  }
-
-  async function fetchGoogleFormsResource(path, token) {
-    return WorkoutForms.fetchResource(path, token);
-  }
-
   // ---------- reading responses ----------
   function toWorkoutRow(response, questionMap) {
-    const row = { submitted: response.lastSubmittedTime || response.createTime };
-    Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
-      const fieldName = questionMap.get(questionId);
-
-      if (fieldName) {
-        row[fieldName] = answer.textAnswers?.answers?.[0]?.value ?? "";
-      }
-    });
+    const row = {
+      submitted: response.lastSubmittedTime || response.createTime,
+      ...WorkoutForms.decodeResponse(response, questionMap)
+    };
     const parseOptionalNumber = value => (value === undefined || value === "" ? null : Number(value));
 
     return {
@@ -193,14 +145,10 @@
   }
 
   function toMeasurementRow(response, questionMap) {
-    const row = { submitted: response.lastSubmittedTime || response.createTime };
-    Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
-      const fieldName = questionMap.get(questionId);
-
-      if (fieldName) {
-        row[fieldName] = answer.textAnswers?.answers?.[0]?.value ?? "";
-      }
-    });
+    const row = {
+      submitted: response.lastSubmittedTime || response.createTime,
+      ...WorkoutForms.decodeResponse(response, questionMap)
+    };
     const parseOptionalNumber = value => {
       if (value === undefined || value === "") {
         return null;
@@ -230,37 +178,14 @@
     return measurementRow;
   }
 
-  async function readFormRows(configuration, questionFieldNames, requiredField, transformRow, token) {
-    const form = await fetchGoogleFormsResource(encodeURIComponent(configuration.formId), token);
-    const questionMap = WorkoutForms.buildQuestionMap(configuration, form, questionFieldNames);
-
-    if (!new Set(questionMap.values()).has(requiredField)) {
-      throw new Error(`The form's questions don't match the ${requiredField} tracker fields.`);
-    }
-
-    const responses = await WorkoutForms.fetchAllResponses(configuration, token);
+  async function fetchFormRows(configuration, questionFieldNames, requiredField, transformRow) {
+    const { responses, questionMap } = await WorkoutForms.readForm(configuration, questionFieldNames, {
+      requiredFields: [requiredField],
+      missingFieldsMessage: `The form's questions don't match the ${requiredField} tracker fields.`,
+      retryUnauthorized: true
+    });
 
     return responses.map(response => transformRow(response, questionMap));
-  }
-
-  async function fetchFormRows(configuration, questionFieldNames, requiredField, transformRow, token) {
-    try {
-      return {
-        rows: await readFormRows(configuration, questionFieldNames, requiredField, transformRow, token),
-        token
-      };
-    } catch (error) {
-      if (!(error instanceof GOOGLE_FORMS_REQUEST_ERROR) || error.status !== 401) {
-        throw error;
-      }
-
-      const refreshedToken = await getToken(true);
-
-      return {
-        rows: await readFormRows(configuration, questionFieldNames, requiredField, transformRow, refreshedToken),
-        token: refreshedToken
-      };
-    }
   }
 
   function latestMeasurementEntries(rowsToDeduplicate) {
@@ -281,7 +206,7 @@
   }
 
   async function loadData(interactive) {
-    if (loading) {
+    if (loading && loadingUser === WorkoutAuth.user) {
       return;
     }
 
@@ -292,6 +217,10 @@
     }
 
     loading = true;
+    loadingUser = WorkoutAuth.user;
+    const owner = loadingUser;
+    const currentLoadVersion = ++loadVersion;
+    const isCurrentLoad = () => WorkoutAuth.user === owner && currentLoadVersion === loadVersion;
     $("#load-data").disabled = true;
     $("#fork-help").hidden = true;
     // Discard everything from the previous load so the view is rebuilt only from fresh form data.
@@ -310,27 +239,37 @@
     setStatus("Loading your workouts and measurements…");
 
     try {
-      let token = await getToken(false);
-      const workoutResult = await fetchFormRows(
-        FORM_CONFIGURATION, FORM_QUESTION_FIELD_NAMES, "exercise", toWorkoutRow, token
+      const workoutRows = await fetchFormRows(
+        FORM_CONFIGURATION, FORM_QUESTION_FIELD_NAMES, "exercise", toWorkoutRow
       );
-      token = workoutResult.token;
-      allRows = workoutResult.rows
-        .filter(workoutRow => workoutRow.exercise);
+
+      if (!isCurrentLoad()) {
+        return;
+      }
+
+      allRows = workoutRows.filter(workoutRow => workoutRow.exercise);
 
       if (!MEASUREMENTS_FORM_CONFIGURATION.formId) {
         measurementLoadError = "Measurements form is not configured in fitness/config.js.";
       } else {
         try {
-          const measurementResult = await fetchFormRows(
+          const measurementEntries = await fetchFormRows(
             MEASUREMENTS_FORM_CONFIGURATION,
             MEASUREMENT_QUESTION_FIELD_NAMES,
             "date",
-            toMeasurementRow,
-            token
+            toMeasurementRow
           );
-          allMeasurementRows = latestMeasurementEntries(measurementResult.rows);
+
+          if (!isCurrentLoad()) {
+            return;
+          }
+
+          allMeasurementRows = latestMeasurementEntries(measurementEntries);
         } catch (error) {
+          if (!isCurrentLoad()) {
+            return;
+          }
+
           measurementLoadError = error instanceof GOOGLE_FORMS_REQUEST_ERROR &&
             (error.status === 403 || error.status === 404)
             ? "Measurement responses could not be read. Check that your account has edit access to the measurements form."
@@ -342,16 +281,20 @@
       renderUserOptions(keepUser);
       applyUser();
     } catch (error) {
-      handleLoadError(error, interactive);
+      if (isCurrentLoad()) {
+        handleLoadError(error, interactive);
+      }
     } finally {
-      loading = false;
-      $("#load-data").disabled = false;
+      if (isCurrentLoad()) {
+        loading = false;
+        loadingUser = null;
+        $("#load-data").disabled = false;
+      }
     }
   }
 
   function handleLoadError(error, interactive) {
-    sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+    WorkoutAuth.clearCachedToken();
 
     if (error instanceof GOOGLE_FORMS_REQUEST_ERROR ) {
       if (error.reason === "SERVICE_DISABLED" || error.reason === "accessNotConfigured") {
@@ -1057,8 +1000,9 @@
   }
 
   function onSignOut() {
-    sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+    loadVersion += 1;
+    loading = false;
+    loadingUser = null;
     rows = [];
     allRows = [];
     measurementRows = [];

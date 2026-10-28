@@ -55,7 +55,8 @@ function createEnvironment(initialRows = [], options = {}) {
     },
     WorkoutAuth: {
       user: { email: "current@example.com" },
-      requestAccessToken: async () => "test-access-token"
+      getFormsAccessToken: async () => "test-access-token",
+      clearCachedToken() {}
     },
     fetch: async (url, request = {}) => {
       requests.push({ url, request });

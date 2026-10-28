@@ -111,7 +111,11 @@ function createEnvironment(options = {}) {
       window.WorkoutAuth.user = null;
       handlers.onSignOut();
     },
-    set(field, value) { element(`measurement-${field}`).value = String(value); },
+    set(field, value) {
+      const input = element(`measurement-${field}`);
+      input.value = String(value);
+      element("measurement-form").events.input({ target: input });
+    },
     submit: () => element("measurement-form").events.submit({ preventDefault() {} }),
     retry: () => element("retry-measurements").events.click(),
     changeUnits(nextUnits) {
@@ -184,6 +188,67 @@ test("converts imperial input to canonical form units and preserves zero and opt
   assert.equal(Number(body.get(CONFIGURATION.fields.waterLitres)), 0.295735295625);
   assert.equal(body.get(CONFIGURATION.fields.sleepHours), "0");
   assert.equal(body.has(CONFIGURATION.fields.mood), false);
+});
+
+test("repeated unit switches preserve exact canonical measurements in history and submissions", async () => {
+  for (const units of ["metric", "imperial"]) {
+    const environment = createEnvironment({ units });
+    environment.signIn();
+    environment.set("neck", 40);
+    environment.set("weight", 80.12345);
+    environment.set("water", 2.12345);
+    environment.set("sleep", 7.12345);
+    environment.set("mood", "good");
+
+    for (let switchCount = 0; switchCount < 10; switchCount += 1) {
+      environment.changeUnits(units === "metric" ? "imperial" : "metric");
+      environment.changeUnits(units);
+    }
+
+    assert.equal(environment.element("measurement-neck").value, "40");
+    await environment.submit();
+    const expected = {
+      neck: units === "metric" ? 40 : 40 * 2.54,
+      weight: units === "metric" ? 80.12345 : 80.12345 * 0.45359237,
+      water: units === "metric" ? 2.12345 : 2.12345 * 0.0295735295625,
+      sleep: 7.12345,
+      mood: "good"
+    };
+    assert.deepEqual(JSON.parse(JSON.stringify(environment.records()[0].values)), expected);
+    const body = environment.requests[0].request.body;
+    assert.equal(Number(body.get(CONFIGURATION.fields.neckCm)), expected.neck);
+    assert.equal(Number(body.get(CONFIGURATION.fields.weightKg)), expected.weight);
+    assert.equal(Number(body.get(CONFIGURATION.fields.waterLitres)), expected.water);
+    assert.equal(Number(body.get(CONFIGURATION.fields.sleepHours)), expected.sleep);
+  }
+});
+
+test("editing a converted measurement replaces its canonical value without changing other fields", async () => {
+  const environment = createEnvironment();
+  environment.signIn();
+  environment.set("neck", 40);
+  environment.set("weight", 80);
+  environment.changeUnits("imperial");
+  environment.set("neck", 16);
+  environment.changeUnits("metric");
+  await environment.submit();
+  assert.equal(environment.records()[0].values.neck, 16 * 2.54);
+  assert.equal(environment.records()[0].values.weight, 80);
+});
+
+test("undo after unit changes preserves the original canonical values for submission", async () => {
+  const environment = createEnvironment();
+  environment.signIn();
+  environment.set("neck", 40);
+  environment.set("water", 2.12345);
+  environment.changeUnits("imperial");
+  environment.element("clear-measurements").events.click();
+  environment.changeUnits("metric");
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-neck").value, "40");
+  await environment.submit();
+  assert.equal(environment.records()[0].values.neck, 40);
+  assert.equal(environment.records()[0].values.water, 2.12345);
 });
 
 test("undo restores cleared fields and date exactly without changing history or pending submissions", async () => {

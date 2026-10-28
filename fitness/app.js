@@ -43,11 +43,7 @@
 
   // ---------- configuration checks ----------
   function hasFormConfig() {
-    const fields = FORM_CONFIGURATION.fields || {};
-
-    return typeof FORM_CONFIGURATION.actionUrl === "string" &&
-      /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(FORM_CONFIGURATION.actionUrl) &&
-      Object.values(fields).some(entryId => /^entry\.\d+$/.test(entryId));
+    return WorkoutForms.hasSubmissionConfiguration(FORM_CONFIGURATION);
   }
 
   function showSetupWarnings() {
@@ -102,7 +98,6 @@
     routinesLoaded = false;
     refreshRoutineList();
     refreshExerciseNames();
-    WorkoutRoutines.clearCachedToken();
     $("#tracker-view").hidden = true;
   }
 

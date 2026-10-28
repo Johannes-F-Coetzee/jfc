@@ -42,6 +42,8 @@ Reading workout or measurement responses requires **edit access to the correspon
 
 ### Track page
 
+Switching measurement units preserves the original canonical values until a field is edited, even though converted fields and history are displayed rounded to two decimal places. Clear/Undo also preserves that precision.
+
 [`fitness/track.html`](fitness/track.html) sends body measurements, weight, sleep, water, energy, and mood to a separate **Google Form**, with one response per submission. Body measurements use centimetres or inches and weight uses kilograms or pounds according to Settings; sleep is in hours and water is in litres or US fluid ounces. Responses always store centimetres (`neckCm`, `bicepLCm`, etc.), kilograms (`weightKg`), hours (`sleepHours`), and litres (`waterLitres`), plus `email`, `measurementId`, `date`, `energy`, and `mood`. The page groups fields into Body, Daily state, and Circumference, in that order. Energy and mood are dropdowns with the same options as the page.
 
 **Submit measurements** uses the same full-width submit row as the Log page, staying pinned to the bottom of the screen on phones. **Clear fields** and submission status appear below it. **Undo** restores cleared fields and their date until you edit the form, submit, or change accounts. Clearing fields does not delete history or queued submissions.
@@ -86,7 +88,20 @@ Local testing: `python -m http.server 8000`, then open <http://localhost:8000/fi
 Configuration regression tests (Node.js): `node --test fitness/tests/routines.test.cjs`.
 Theme/settings regression tests (Node.js): `node --test fitness/tests/settings.test.cjs`.
 Track page regression tests (Node.js): `node --test fitness/tests/track.test.cjs`.
+Google authentication and Forms integration regression tests (Node.js): `node --test fitness/tests/auth.test.cjs fitness/tests/google-forms.test.cjs`.
 All fitness regression tests (Node.js): `node --test fitness/tests`.
+
+### Shared Google integration
+
+All three fitness pages use the same browser-native integration modules:
+
+- [`fitness/auth.js`](fitness/auth.js) loads Google Identity Services, renders sign-in, restores the existing `workout.user` session, and handles sign-out. It also owns Forms read consent and the account-bound `workout.formsToken` cache, migrating the legacy `workout.trendsToken` key. Concurrent token requests share one consent request; sign-out clears both token keys, and a token returned after an account change is discarded. The two read-only Forms scopes and existing session/token storage shapes are unchanged.
+- [`fitness/google-forms.js`](fitness/google-forms.js) provides submission configuration checks, anonymous form POSTs with a 15-second timeout, API errors, question mapping, paginated response reads, and answer decoding. Authenticated reads use the shared token cache. Trends retains its one-time refresh/retry on HTTP 401; routine reads invalidate rejected tokens and leave retrying to the existing routine action.
+- Page scripts keep their domain-specific validation, units, history, queues, and status messages. Log and Track still report an opaque POST as sent, not confirmed; routine saves still read back every set before reporting success. Workout form mappings may remain optional, while Track requires all mappings to be present and unique.
+
+Google Identity load failures are shown in the sign-in view. No credentials or access tokens belong in configuration files, exported routines, or commits.
+
+Sign-out clears the active page session even if browser session storage is unavailable. If saved session data cannot be removed, the sign-in view warns you to close the tab to end the saved session.
 
 ### Configuration saves and recovery
 

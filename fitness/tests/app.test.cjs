@@ -28,7 +28,6 @@ function createEnvironment(options = {}) {
   };
   const routines = {
     isConfigured: () => options.configured !== false,
-    clearCachedToken() {},
     load() {
       loadCount += 1;
 
@@ -39,7 +38,8 @@ function createEnvironment(options = {}) {
     WORKOUT_CONFIG: {},
     addEventListener() {},
     WorkoutAuth: authentication,
-    WorkoutRoutines: routines
+    WorkoutRoutines: routines,
+    WorkoutForms: { hasSubmissionConfiguration: () => false }
   };
   runInNewContext(UTILITIES_SOURCE, { window });
   runInNewContext(SUBMISSION_STATUS_SOURCE, { window });
@@ -51,7 +51,7 @@ function createEnvironment(options = {}) {
 })();`);
   assert.notEqual(source, SOURCE);
   runInNewContext(source, {
-    window, WorkoutAuth: authentication, WorkoutRoutines: routines,
+    window, WorkoutAuth: authentication, WorkoutRoutines: routines, WorkoutForms: window.WorkoutForms,
     document: {
       querySelector: element,
       querySelectorAll: () => [],

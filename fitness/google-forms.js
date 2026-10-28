@@ -1,11 +1,6 @@
 (() => {
   "use strict";
 
-  const READ_PERMISSIONS = [
-    "https://www.googleapis.com/auth/forms.body.readonly",
-    "https://www.googleapis.com/auth/forms.responses.readonly"
-  ];
-
   class RequestError extends Error {
     constructor(status, body) {
       super(body?.error?.message || `HTTP ${status}`);
@@ -18,6 +13,16 @@
 
       return details.map(detail => detail.reason).find(Boolean) || this.body?.error?.status || "";
     }
+  }
+
+  function hasSubmissionConfiguration(configuration, { requiredFields = [], uniqueEntries = false } = {}) {
+    const fields = configuration.fields || {};
+    const entries = requiredFields.length ? requiredFields.map(field => fields[field]) : Object.values(fields);
+    const isEntry = entry => /^entry\.\d+$/.test(entry || "");
+
+    return /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(configuration.actionUrl || "") &&
+      (requiredFields.length ? entries.every(isEntry) : entries.some(isEntry)) &&
+      (!uniqueEntries || new Set(entries).size === entries.length);
   }
 
   async function fetchResource(path, token) {
@@ -87,7 +92,90 @@
     return responses;
   }
 
+  function decodeResponse(response, questionMap) {
+    const row = {};
+    Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
+      const fieldName = questionMap.get(questionId);
+
+      if (fieldName) {
+        row[fieldName] = answer.textAnswers?.answers?.[0]?.value ?? "";
+      }
+    });
+
+    return row;
+  }
+
+  async function readForm(configuration, questionFieldNames, {
+    requiredFields = [],
+    missingFieldsMessage = "The Google Form is missing required tracker questions.",
+    retryUnauthorized = false
+  } = {}) {
+    const owner = window.WorkoutAuth.user;
+
+    if (!owner) {
+      throw new Error("Sign in before reading Google Forms data.");
+    }
+
+    if (!configuration.formId) {
+      throw new Error("Configure the Google Form ID before reading responses.");
+    }
+
+    const assertCurrentUser = () => {
+      if (window.WorkoutAuth.user !== owner) {
+        throw new Error("The signed-in account changed.");
+      }
+    };
+    const readWithToken = async token => {
+      assertCurrentUser();
+      const definition = await fetchResource(encodeURIComponent(configuration.formId), token);
+      assertCurrentUser();
+      const questionMap = buildQuestionMap(configuration, definition, questionFieldNames);
+      const mappedFields = new Set(questionMap.values());
+
+      if (!requiredFields.every(field => mappedFields.has(field))) {
+        throw new Error(missingFieldsMessage);
+      }
+
+      const responses = await fetchAllResponses(configuration, token);
+      assertCurrentUser();
+
+      return { responses, questionMap };
+    };
+
+    try {
+      return await readWithToken(await window.WorkoutAuth.getFormsAccessToken());
+    } catch (error) {
+      assertCurrentUser();
+
+      if (!(error instanceof RequestError) || error.status !== 401) {
+        throw error;
+      }
+
+      window.WorkoutAuth.clearCachedToken();
+
+      if (!retryUnauthorized) {
+        throw error;
+      }
+
+      try {
+        return await readWithToken(await window.WorkoutAuth.getFormsAccessToken({ forceNew: true }));
+      } catch (retryError) {
+        assertCurrentUser();
+
+        if (retryError instanceof RequestError && retryError.status === 401) {
+          window.WorkoutAuth.clearCachedToken();
+        }
+
+        throw retryError;
+      }
+    }
+  }
+
   async function postRow(configuration, row) {
+    if (!hasSubmissionConfiguration(configuration)) {
+      throw new Error("Configure the Google Form action URL and entry IDs before submitting.");
+    }
+
     const body = new URLSearchParams();
 
     for (const [fieldName, entry] of Object.entries(configuration.fields || {})) {
@@ -111,5 +199,8 @@
     }
   }
 
-  window.WorkoutForms = { READ_PERMISSIONS, RequestError, fetchResource, buildQuestionMap, fetchAllResponses, postRow };
+  window.WorkoutForms = {
+    RequestError, hasSubmissionConfiguration, fetchResource, buildQuestionMap,
+    fetchAllResponses, decodeResponse, readForm, postRow
+  };
 })();

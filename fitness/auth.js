@@ -5,12 +5,22 @@
 
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const SESSION_USER_STORAGE_KEY = "workout.user";
+  const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
+  const LEGACY_SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
+  const FORMS_READ_PERMISSIONS = [
+    "https://www.googleapis.com/auth/forms.body.readonly",
+    "https://www.googleapis.com/auth/forms.responses.readonly"
+  ];
   const SESSION_DURATION_HOURS = 12;
   const OAUTH_LIBRARY_WAIT_MILLISECONDS = 10000;
+  const GOOGLE_IDENTITY_SCRIPT_URL = "https://accounts.google.com/gsi/client";
   const $ = selector => document.querySelector(selector);
 
   let currentUser = null;
   let googleIdentityInitialized = false;
+  let googleLibraryPromise = null;
+  let tokenRequest = null;
+  let sessionVersion = 0;
   let handlers = { onSignIn() {}, onSignOut() {} };
 
   function hasConfiguredGoogleClientIdentifier() {
@@ -44,6 +54,11 @@
   }
 
   function showSignedIn(user) {
+    if (currentUser && currentUser.email !== user.email) {
+      clearCachedToken();
+      sessionVersion += 1;
+    }
+
     currentUser = user;
     $("#login-view").hidden = true;
     $("#user-box").hidden = false;
@@ -119,7 +134,10 @@
       if (user && user.expiresAt > Date.now() && isAllowed(user.email)) {
         return user;
       }
-    } catch { /* fall through */ }
+    } catch (error) {
+      console.error("Could not restore Google sign-in.", error);
+      showLoginError("Saved sign-in could not be restored. Please sign in again.");
+    }
 
     sessionStorage.removeItem(SESSION_USER_STORAGE_KEY);
 
@@ -151,8 +169,18 @@
   }
 
   function signOut() {
-    sessionStorage.removeItem(SESSION_USER_STORAGE_KEY);
     currentUser = null;
+    sessionVersion += 1;
+    let storageCleanupFailed = false;
+
+    for (const key of [SESSION_USER_STORAGE_KEY, SESSION_ACCESS_TOKEN_KEY, LEGACY_SESSION_ACCESS_TOKEN_KEY]) {
+      try {
+        sessionStorage.removeItem(key);
+      } catch (error) {
+        storageCleanupFailed = true;
+        console.error("Could not remove saved Google session data.", error);
+      }
+    }
 
     if (window.google?.accounts?.id) {
       google.accounts.id.disableAutoSelect();
@@ -161,34 +189,54 @@
     $("#user-box").hidden = true;
     $("#login-view").hidden = false;
     handlers.onSignOut();
+    showLoginError(storageCleanupFailed
+      ? "Signed out of this page, but saved sign-in data could not be cleared. Close this tab to end the saved session."
+      : "");
   }
 
-  function waitForOauthLibrary() {
-    return new Promise((resolve, reject) => {
-      const startedAt = Date.now();
-      const check = () => {
-        if (window.google?.accounts?.oauth2) {
+  function loadGoogleLibrary() {
+    if (window.google?.accounts?.id && window.google?.accounts?.oauth2) {
+      return Promise.resolve();
+    }
+
+    if (!googleLibraryPromise) {
+      googleLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = GOOGLE_IDENTITY_SCRIPT_URL;
+        script.async = true;
+        const timeout = setTimeout(() => {
+          reject(new Error("Google sign-in library has not loaded yet. Reload the page to try again."));
+        }, OAUTH_LIBRARY_WAIT_MILLISECONDS);
+        script.addEventListener("load", () => {
+          clearTimeout(timeout);
+
+          if (!window.google?.accounts?.id || !window.google?.accounts?.oauth2) {
+            reject(new Error("Google sign-in library could not be initialized."));
+
+            return;
+          }
+
           resolve();
+        });
+        script.addEventListener("error", () => {
+          clearTimeout(timeout);
+          reject(new Error("Google sign-in library could not be loaded. Check your connection and reload the page."));
+        });
+        document.head.append(script);
+      });
+    }
 
-          return;
-        }
-
-        if (Date.now() - startedAt >= OAUTH_LIBRARY_WAIT_MILLISECONDS) {
-          reject(new Error("Google sign-in library has not loaded yet."));
-
-          return;
-        }
-
-        setTimeout(check, 100);
-      };
-      check();
-    });
+    return googleLibraryPromise;
   }
 
   // Requests an OAuth access token for the signed-in user. Must be called from a user gesture
   // the first time, because Google may open a consent popup.
   async function requestAccessToken(scopes) {
-    await waitForOauthLibrary();
+    if (!hasConfiguredGoogleClientIdentifier()) {
+      throw new Error("Google sign-in is not configured for this site.");
+    }
+
+    await loadGoogleLibrary();
 
     return new Promise((resolve, reject) => {
       const client = google.accounts.oauth2.initTokenClient({
@@ -206,6 +254,8 @@
               new Error("Not all requested permissions were granted."),
               { code: "access_denied" }
             ));
+          } else if (typeof response.access_token !== "string" || !response.access_token) {
+            reject(new Error("Google did not return an access token."));
           } else {
             resolve(response.access_token);
           }
@@ -219,6 +269,97 @@
     });
   }
 
+  function clearCachedToken() {
+    sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+  }
+
+  function readCachedToken() {
+    let cachedAccessToken;
+
+    try {
+      cachedAccessToken = JSON.parse(
+        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
+        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
+        "null"
+      );
+    } catch (error) {
+      console.error("Could not read the cached Google Forms access token.", error);
+      clearCachedToken();
+
+      return null;
+    }
+
+    if (typeof cachedAccessToken?.token !== "string" || !cachedAccessToken.token ||
+      cachedAccessToken.email !== currentUser?.email ||
+      cachedAccessToken.expiresAt <= Date.now() + 60000 ||
+      !Number.isFinite(cachedAccessToken.expiresAt)) {
+      return null;
+    }
+
+    return cachedAccessToken;
+  }
+
+  function hasCachedToken() {
+    return Boolean(readCachedToken());
+  }
+
+  async function getFormsAccessToken({ forceNew = false } = {}) {
+    if (!currentUser) {
+      throw new Error("Sign in before reading Google Forms data.");
+    }
+
+    if (forceNew) {
+      clearCachedToken();
+    } else {
+      const cachedAccessToken = readCachedToken();
+
+      if (cachedAccessToken) {
+        sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify(cachedAccessToken));
+        sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+
+        return cachedAccessToken.token;
+      }
+    }
+
+    const ownerEmail = currentUser.email;
+    const ownerVersion = sessionVersion;
+
+    if (tokenRequest?.email === ownerEmail && tokenRequest.version === ownerVersion) {
+      return tokenRequest.promise;
+    }
+
+    const request = {
+      email: ownerEmail,
+      version: ownerVersion,
+      promise: (async () => {
+        const token = await requestAccessToken(FORMS_READ_PERMISSIONS);
+
+        if (currentUser?.email !== ownerEmail || sessionVersion !== ownerVersion) {
+          throw new Error("The signed-in account changed.");
+        }
+
+        sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify({
+          token,
+          email: ownerEmail,
+          expiresAt: Date.now() + 55 * 60000
+        }));
+        sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
+
+        return token;
+      })()
+    };
+    tokenRequest = request;
+
+    try {
+      return await request.promise;
+    } finally {
+      if (tokenRequest === request) {
+        tokenRequest = null;
+      }
+    }
+  }
+
   function init(pageHandlers) {
     handlers = { ...handlers, ...pageHandlers };
     $("#sign-out").addEventListener("click", signOut);
@@ -228,17 +369,24 @@
       showSignedIn(user);
     }
 
-    if (window.google?.accounts?.id) {
-      initGoogle();
-    } else {
-      window.onGoogleLibraryLoad = initGoogle;
+    if (!hasConfiguredGoogleClientIdentifier()) {
+      showLoginError("Google sign-in is not configured for this site.");
+
+      return;
     }
+
+    loadGoogleLibrary().then(initGoogle).catch(error => {
+      console.error("Could not initialize Google sign-in.", error);
+      showLoginError(error.message);
+    });
   }
 
   window.WorkoutAuth = {
     init,
     signOut,
-    requestAccessToken,
+    getFormsAccessToken,
+    hasCachedToken,
+    clearCachedToken,
     hasConfiguredGoogleClientIdentifier,
     get user() {
       return currentUser;

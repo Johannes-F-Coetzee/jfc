@@ -3,8 +3,6 @@
 
   const CONFIGURATION = window.WORKOUT_CONFIG?.configurationForm || {};
   const PENDING_STORAGE_KEY = "workout.pendingConfiguration";
-  const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
-  const LEGACY_SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
   const QUESTION_FIELD_NAMES = {
     "email": "email", "configuration id": "configurationId", "routine": "routine",
     "total sets": "totalSets", "estimated time (seconds)": "estimatedSeconds",
@@ -12,79 +10,11 @@
     "measure (reps/time)": "measure", "reps": "reps", "duration (seconds)": "durationSeconds",
     "weight (kg)": "weightKg"
   };
-  let accessToken = null;
-  let tokenEmail = "";
-  let tokenExpiresAt = 0;
-
   function isConfigured() {
     return Boolean(CONFIGURATION.formId) &&
-      /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(CONFIGURATION.actionUrl || "") &&
-      Object.values(QUESTION_FIELD_NAMES).every(field => /^entry\.\d+$/.test(CONFIGURATION.fields?.[field] || ""));
-  }
-
-  function hasCachedToken() {
-    try {
-      const cachedAccessToken = JSON.parse(
-        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
-        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
-        "null"
-      );
-
-      return cachedAccessToken?.email === WorkoutAuth.user?.email &&
-        cachedAccessToken.expiresAt > Date.now() + 60000;
-    } catch {
-      return false;
-    }
-  }
-
-  function clearCachedToken() {
-    accessToken = null;
-    tokenEmail = "";
-    tokenExpiresAt = 0;
-    sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
-  }
-
-  async function getToken() {
-    if (!WorkoutAuth.user) {
-      throw new Error("Sign in before loading or saving configurations.");
-    }
-
-    if (!isConfigured()) {
-      throw new Error("Set up configurationForm in fitness/config.js using createWorkoutConfigurationForm.");
-    }
-
-    try {
-      const cachedAccessToken = JSON.parse(
-        sessionStorage.getItem(SESSION_ACCESS_TOKEN_KEY) ||
-        sessionStorage.getItem(LEGACY_SESSION_ACCESS_TOKEN_KEY) ||
-        "null"
-      );
-
-      if (cachedAccessToken?.email === WorkoutAuth.user.email &&
-          cachedAccessToken.expiresAt > Date.now() + 60000) {
-        accessToken = cachedAccessToken.token;
-        tokenEmail = cachedAccessToken.email;
-        tokenExpiresAt = cachedAccessToken.expiresAt;
-        sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify(cachedAccessToken));
-        sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
-      }
-    } catch {
-      sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
-    }
-
-    if (!accessToken || tokenEmail !== WorkoutAuth.user.email || tokenExpiresAt <= Date.now()) {
-      accessToken = await WorkoutAuth.requestAccessToken(WorkoutForms.READ_PERMISSIONS);
-      tokenEmail = WorkoutAuth.user.email;
-      tokenExpiresAt = Date.now() + 55 * 60000;
-      sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify({
-        token: accessToken,
-        email: tokenEmail,
-        expiresAt: tokenExpiresAt
-      }));
-    }
-
-    return accessToken;
+      WorkoutForms.hasSubmissionConfiguration(CONFIGURATION, {
+        requiredFields: Object.values(QUESTION_FIELD_NAMES)
+      });
   }
 
   function numberField(value, label, integer = false) {
@@ -99,18 +29,10 @@
   }
 
   function decodeResponses(responses, questionMap) {
-    return responses.map(response => {
-      const row = {};
-      Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
-        const field = questionMap.get(questionId);
-
-        if (field) {
-          row[field] = (answer.textAnswers?.answers?.[0]?.value || "").trim();
-        }
-      });
-
-      return row;
-    });
+    return responses.map(response => Object.fromEntries(
+      Object.entries(WorkoutForms.decodeResponse(response, questionMap))
+        .map(([field, value]) => [field, value.trim()])
+    ));
   }
 
   function assembleRoutine(rows) {
@@ -224,25 +146,23 @@
   }
 
   async function load() {
+    if (!WorkoutAuth.user) {
+      throw new Error("Sign in before loading or saving configurations.");
+    }
+
+    if (!isConfigured()) {
+      throw new Error("Set up configurationForm in fitness/config.js using createWorkoutConfigurationForm.");
+    }
+
     try {
-      const token = await getToken();
-      const definition = await WorkoutForms.fetchResource(encodeURIComponent(CONFIGURATION.formId), token);
-      const questionMap = WorkoutForms.buildQuestionMap(CONFIGURATION, definition, QUESTION_FIELD_NAMES);
-
-      if (!Object.values(QUESTION_FIELD_NAMES).every(field => [...questionMap.values()].includes(field))) {
-        throw new Error("The configuration form is missing required questions. Check configurationForm.fields.");
-      }
-
-      const responses = await WorkoutForms.fetchAllResponses(CONFIGURATION, token);
+      const { responses, questionMap } = await WorkoutForms.readForm(CONFIGURATION, QUESTION_FIELD_NAMES, {
+        requiredFields: Object.values(QUESTION_FIELD_NAMES),
+        missingFieldsMessage: "The configuration form is missing required questions. Check configurationForm.fields."
+      });
 
       return buildCatalog(decodeResponses(responses, questionMap));
     } catch (error) {
       if (error instanceof WorkoutForms.RequestError) {
-        if (error.status === 401) {
-          accessToken = null;
-          sessionStorage.removeItem(SESSION_ACCESS_TOKEN_KEY);
-        }
-
         throw new Error(`Could not read the configuration form: ${error.message}. ` +
           "Every tracker user needs edit access to this form, and the Google Forms API must be enabled.");
       }
@@ -315,5 +235,5 @@
     }
   }
 
-  window.WorkoutRoutines = { isConfigured, hasCachedToken, clearCachedToken, load, save };
+  window.WorkoutRoutines = { isConfigured, load, save };
 })();

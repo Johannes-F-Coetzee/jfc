@@ -56,12 +56,10 @@
   let clearedFields = null;
 
   function hasFormConfiguration() {
-    const fields = FORM_CONFIGURATION.fields || {};
-    const entries = REQUIRED_FORM_FIELDS.map(field => fields[field]);
-
-    return /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(FORM_CONFIGURATION.actionUrl || "") &&
-      entries.every(entry => /^entry\.\d+$/.test(entry || "")) &&
-      new Set(entries).size === entries.length;
+    return window.WorkoutForms.hasSubmissionConfiguration(FORM_CONFIGURATION, {
+      requiredFields: REQUIRED_FORM_FIELDS,
+      uniqueEntries: true
+    });
   }
 
   function currentUnits() {
@@ -183,11 +181,28 @@
       const value = $(`#measurement-${field.key}`).value;
 
       if (value !== "") {
-        values[field.key] = field.kind === "number" ? toCanonical(field, Number(value), system) : value;
+        const input = $(`#measurement-${field.key}`);
+        values[field.key] = field.kind === "number"
+          ? input.dataset.displayValue === value
+            ? Number(input.dataset.canonicalValue)
+            : toCanonical(field, Number(value), system)
+          : value;
       }
     });
 
     return values;
+  }
+
+  function setFieldValue(field, value, displayValue) {
+    const input = $(`#measurement-${field.key}`);
+    input.value = displayValue ?? (field.kind === "number"
+      ? String(Number(fromCanonical(field, value).toFixed(2)))
+      : value);
+
+    if (field.kind === "number") {
+      input.dataset.canonicalValue = String(value);
+      input.dataset.displayValue = input.value;
+    }
   }
 
   function formatValue(field, value) {
@@ -393,7 +408,10 @@
   function clearFields() {
     discardClearedFields();
     FIELD_DEFINITIONS.forEach(field => {
-      $(`#measurement-${field.key}`).value = "";
+      const input = $(`#measurement-${field.key}`);
+      input.value = "";
+      delete input.dataset.canonicalValue;
+      delete input.dataset.displayValue;
     });
     $("#measurement-date").value = WORKOUT_UTILITIES.getLocalDateString();
     $("#measurement-status").textContent = "";
@@ -409,6 +427,7 @@
     const snapshot = {
       date: $("#measurement-date").value,
       units: currentUnits(),
+      canonicalValues: collectValues(),
       values: Object.fromEntries(FIELD_DEFINITIONS.map(field =>
         [field.key, $(`#measurement-${field.key}`).value]))
     };
@@ -428,8 +447,10 @@
     FIELD_DEFINITIONS.forEach(field => {
       const value = clearedFields.values[field.key];
       const convertUnits = value !== "" && field.kind === "number" && clearedFields.units !== currentUnits();
-      $(`#measurement-${field.key}`).value = convertUnits ?
-        String(Number(fromCanonical(field, toCanonical(field, Number(value), clearedFields.units)).toFixed(2))) : value;
+
+      if (value !== "") {
+        setFieldValue(field, clearedFields.canonicalValues[field.key], convertUnits ? undefined : value);
+      }
     });
     discardClearedFields();
     showStatus("Fields restored.");
@@ -536,8 +557,7 @@
       const value = values[field.key];
 
       if (value !== undefined) {
-        const input = $(`#measurement-${field.key}`);
-        input.value = field.kind === "number" ? String(Number(fromCanonical(field, value).toFixed(2))) : value;
+        setFieldValue(field, value);
       }
     });
     renderHistory();
@@ -547,7 +567,14 @@
     renderFields();
     $("#measurement-date").value = WORKOUT_UTILITIES.getLocalDateString();
     $("#measurement-form").addEventListener("submit", saveEntry);
-    $("#measurement-form").addEventListener("input", discardClearedFields);
+    $("#measurement-form").addEventListener("input", event => {
+      if (event?.target?.dataset.field) {
+        delete event.target.dataset.canonicalValue;
+        delete event.target.dataset.displayValue;
+      }
+
+      discardClearedFields();
+    });
     $("#measurement-form").addEventListener("change", discardClearedFields);
     $("#clear-measurements").addEventListener("click", clearFieldsWithUndo);
     $("#undo-clear-measurements").addEventListener("click", undoClearFields);
