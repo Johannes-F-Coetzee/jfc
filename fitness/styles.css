@@ -915,6 +915,12 @@ tbody tr:hover {
   }
 }
 
+@media (max-width: 700px) and (max-height: 600px) {
+  #measurement-form .submit-row {
+    position: static;
+  }
+}
+
 @media (min-width: 701px) {
   .settings-icon {
     display: none;
