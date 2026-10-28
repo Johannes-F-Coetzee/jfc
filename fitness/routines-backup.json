@@ -1,6 +1,71 @@
 {
   "routines": [
     {
+      "name": "Push",
+      "exercises": [
+        {
+          "name": "Pike Push-up",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Push-up",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Dip",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        },
+        {
+          "name": "Dead Hang",
+          "measure": "time",
+          "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Pull",
       "exercises": [
         {
@@ -73,16 +138,13 @@
           "measure": "time",
           "sets": [
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             },
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             },
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             }
           ]
         },
@@ -91,16 +153,13 @@
           "measure": "time",
           "sets": [
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             },
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             },
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             }
           ]
         },
@@ -109,12 +168,13 @@
           "measure": "time",
           "sets": [
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
             },
             {
-              "durationSeconds": 30,
-              "weightKg": 13.4
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
             }
           ]
         },
@@ -132,7 +192,12 @@
               "durationSeconds": 30
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "Aux Work",
+      "exercises": [
         {
           "name": "Abs Roller",
           "measure": "time",
@@ -147,14 +212,9 @@
               "durationSeconds": 30
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "Push",
-      "exercises": [
+        },
         {
-          "name": "Pike Push-up",
+          "name": "Lean Sholder Fly Left",
           "measure": "time",
           "sets": [
             {
@@ -169,7 +229,7 @@
           ]
         },
         {
-          "name": "Push-up",
+          "name": "Lean Sholder Fly Right",
           "measure": "time",
           "sets": [
             {
@@ -184,7 +244,7 @@
           ]
         },
         {
-          "name": "Dip",
+          "name": "Centre Sholder Fly",
           "measure": "time",
           "sets": [
             {
@@ -216,92 +276,27 @@
       ]
     },
     {
-      "name": "Aux Work",
-      "exercises": [
-        {
-          "name": "Mega Hold",
-          "measure": "time",
-          "sets": [
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            }
-          ]
-        },
-        {
-          "name": "Lateral Raises Leaning Left",
-          "measure": "time",
-          "sets": [
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            }
-          ]
-        },
-        {
-          "name": "Lateral Raises Leaning Right",
-          "measure": "time",
-          "sets": [
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            }
-          ]
-        },
-        {
-          "name": "Front Pulls",
-          "measure": "time",
-          "sets": [
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            }
-          ]
-        },
-        {
-          "name": "Abs Roller",
-          "measure": "time",
-          "sets": [
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            },
-            {
-              "durationSeconds": 30
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Run",
+      "name": "Run Lv. 0",
       "exercises": [
         {
           "name": "Push Red",
           "measure": "time",
           "sets": [
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
+            {
+              "durationSeconds": 30
+            },
             {
               "durationSeconds": 30
             }
@@ -312,7 +307,22 @@
           "measure": "time",
           "sets": [
             {
-              "durationSeconds": 210
+              "durationSeconds": 180
+            },
+            {
+              "durationSeconds": 180
+            },
+            {
+              "durationSeconds": 180
+            },
+            {
+              "durationSeconds": 180
+            },
+            {
+              "durationSeconds": 180
+            },
+            {
+              "durationSeconds": 180
             }
           ]
         }
