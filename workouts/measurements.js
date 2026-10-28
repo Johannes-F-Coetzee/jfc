@@ -22,6 +22,18 @@
     { key: "energy", label: "Energy", kind: "select", options: ["spent", "weak", "tired", "fair", "good", "strong"] },
     { key: "mood", label: "Mood", kind: "select", options: ["bad", "poor", "meh", "fair", "good", "great"] }
   ];
+  const FIELD_GROUPS = [
+    { title: "Body", layout: "single", keys: ["weight"] },
+    { title: "Daily state", layout: "quad", keys: ["sleep", "water", "energy", "mood"] },
+    {
+      title: "Circumference",
+      layout: "paired",
+      keys: [
+        "neck", "shoulders", "chest", "waist", "belly", "butt", "bicepL", "bicepR",
+        "forearmL", "forearmR", "thighL", "thighR", "calfL", "calfR"
+      ]
+    }
+  ];
   const STORAGE_PREFIX = "fitness.measurements.";
   const FORM_CONFIGURATION = (window.WORKOUT_CONFIG || {}).measurementsForm || {};
   const FORM_FIELD_NAMES = FIELD_DEFINITIONS.map(field => {
@@ -39,6 +51,7 @@
 
   let records = [];
   let storageKey = "";
+  let clearedFields = null;
 
   function hasFormConfiguration() {
     const fields = FORM_CONFIGURATION.fields || {};
@@ -80,45 +93,59 @@
     return "";
   }
 
+  function createField(field) {
+    const label = document.createElement("label");
+    label.className = "field";
+    label.htmlFor = `measurement-${field.key}`;
+    const title = document.createElement("span");
+    title.textContent = field.kind === "number" ? `${field.label} (${unitLabel(field)})` : field.label;
+    label.append(title);
+
+    if (field.kind === "select") {
+      const select = document.createElement("select");
+      select.id = `measurement-${field.key}`;
+      select.dataset.field = field.key;
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Choose…";
+      select.append(placeholder);
+      field.options.forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.append(option);
+      });
+      label.append(select);
+
+      return label;
+    }
+
+    const input = document.createElement("input");
+    input.id = `measurement-${field.key}`;
+    input.dataset.field = field.key;
+    input.type = "number";
+    input.min = "0";
+    input.step = "any";
+    input.inputMode = "decimal";
+    label.append(input);
+
+    return label;
+  }
+
   function renderFields() {
     const container = $("#measurement-fields");
     container.replaceChildren();
 
-    FIELD_DEFINITIONS.forEach(field => {
-      const label = document.createElement("label");
-      label.className = "field";
-      label.htmlFor = `measurement-${field.key}`;
-      const title = document.createElement("span");
-      title.textContent = field.kind === "number" ? `${field.label} (${unitLabel(field)})` : field.label;
-      label.append(title);
-
-      if (field.kind === "select") {
-        const select = document.createElement("select");
-        select.id = `measurement-${field.key}`;
-        select.dataset.field = field.key;
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "Select";
-        select.append(placeholder);
-        field.options.forEach(value => {
-          const option = document.createElement("option");
-          option.value = value;
-          option.textContent = value;
-          select.append(option);
-        });
-        label.append(select);
-      } else {
-        const input = document.createElement("input");
-        input.id = `measurement-${field.key}`;
-        input.dataset.field = field.key;
-        input.type = "number";
-        input.min = "0";
-        input.step = "any";
-        input.inputMode = "decimal";
-        label.append(input);
-      }
-
-      container.append(label);
+    FIELD_GROUPS.forEach(group => {
+      const fieldset = document.createElement("fieldset");
+      fieldset.className = "measurement-group";
+      const legend = document.createElement("legend");
+      legend.textContent = group.title;
+      const grid = document.createElement("div");
+      grid.className = `measurement-grid ${group.layout}`;
+      group.keys.forEach(key => grid.append(createField(FIELD_DEFINITIONS.find(field => field.key === key))));
+      fieldset.append(legend, grid);
+      container.append(fieldset);
     });
   }
 
@@ -169,6 +196,7 @@
   }
 
   function populateForm(record) {
+    discardClearedFields();
     $("#measurement-date").value = record.date;
     FIELD_DEFINITIONS.forEach(field => {
       const input = $(`#measurement-${field.key}`);
@@ -387,6 +415,7 @@
   }
 
   function clearFields() {
+    discardClearedFields();
     FIELD_DEFINITIONS.forEach(field => {
       $(`#measurement-${field.key}`).value = "";
     });
@@ -395,8 +424,45 @@
     $("#measurement-status").className = "status";
   }
 
+  function discardClearedFields() {
+    clearedFields = null;
+    $("#undo-clear-measurements").hidden = true;
+  }
+
+  function clearFieldsWithUndo() {
+    const snapshot = {
+      date: $("#measurement-date").value,
+      units: currentUnits(),
+      values: Object.fromEntries(FIELD_DEFINITIONS.map(field =>
+        [field.key, $(`#measurement-${field.key}`).value]))
+    };
+    clearFields();
+    clearedFields = snapshot;
+    showStatus("Fields cleared.");
+    $("#undo-clear-measurements").hidden = false;
+    $("#undo-clear-measurements").focus();
+  }
+
+  function undoClearFields() {
+    if (!clearedFields) {
+      return;
+    }
+
+    $("#measurement-date").value = clearedFields.date;
+    FIELD_DEFINITIONS.forEach(field => {
+      const value = clearedFields.values[field.key];
+      const convertUnits = value !== "" && field.kind === "number" && clearedFields.units !== currentUnits();
+      $(`#measurement-${field.key}`).value = convertUnits ?
+        String(Number(fromCanonical(field, toCanonical(field, Number(value), clearedFields.units)).toFixed(2))) : value;
+    });
+    discardClearedFields();
+    showStatus("Fields restored.");
+    $("#clear-measurements").focus();
+  }
+
   async function saveEntry(event) {
     event.preventDefault();
+    discardClearedFields();
 
     if (!storageKey || !window.WorkoutAuth.user) {
       showStatus("Sign in before submitting measurements.", true);
@@ -498,7 +564,10 @@
     renderFields();
     $("#measurement-date").value = localDate();
     $("#measurement-form").addEventListener("submit", saveEntry);
-    $("#clear-measurements").addEventListener("click", clearFields);
+    $("#measurement-form").addEventListener("input", discardClearedFields);
+    $("#measurement-form").addEventListener("change", discardClearedFields);
+    $("#clear-measurements").addEventListener("click", clearFieldsWithUndo);
+    $("#undo-clear-measurements").addEventListener("click", undoClearFields);
     $("#retry-measurements").addEventListener("click", retryQueue);
     window.addEventListener("online", retryQueue);
     document.addEventListener("workout:unitschange", changeUnits);

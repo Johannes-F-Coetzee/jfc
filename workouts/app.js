@@ -12,6 +12,7 @@
     1: "Very light", 2: "Light", 3: "Light", 4: "Moderate", 5: "Moderate",
     6: "Moderate+", 7: "Hard", 8: "Hard+", 9: "Very hard", 10: "Max effort"
   };
+  const POPUP_ERROR_CODES = new Set(["popup_failed_to_open", "popup_closed"]);
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
   let currentUser = null;
@@ -19,6 +20,8 @@
   let sharedRoutines = new Map();
   let routinesLoaded = false;
   let routinesBusy = false;
+  let automaticRoutineLoadAttempted = false;
+  let routineCaptureRequested = false;
 
   // ---------- storage helpers ----------
   function readJson(storage, key, fallback) {
@@ -56,7 +59,7 @@
     }
 
     if (!WorkoutRoutines.isConfigured()) {
-      problems.push("The separate <code>configurationForm</code> is not set - shared configurations cannot be saved or loaded.");
+      problems.push("The separate <code>configurationForm</code> is not set - shared routines cannot be saved or loaded.");
     }
 
     const box = $("#setup-warning");
@@ -77,9 +80,12 @@
     updateRoutineButtons();
 
     if (WorkoutRoutines.isConfigured()) {
-      loadSharedRoutines();
+      if (!routinesLoaded && !routinesBusy && !automaticRoutineLoadAttempted) {
+        automaticRoutineLoadAttempted = true;
+        loadSharedRoutines();
+      }
     } else {
-      setRoutineStatus("Load shared configurations to choose a workout saved by any user.");
+      setRoutineStatus("Shared routines aren't set up, so only workouts typed here can be logged.");
     }
 
     renderHistory();
@@ -138,9 +144,23 @@
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
-  function updatePerceivedExertionLabel(setElement) {
-    const value = $(".set-rpe", setElement).value;
-    $(".rpe-out", setElement).textContent = `${value} · ${PERCEIVED_EXERTION_LABELS[value]}`;
+  function fillPerceivedExertionOptions(select) {
+    select.replaceChildren(...Object.entries(PERCEIVED_EXERTION_LABELS).map(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = `${value} · ${label}`;
+
+      return option;
+    }));
+  }
+
+  function showSetNotes(setElement, focus = false) {
+    $(".notes-field", setElement).hidden = false;
+    $(".set-add-note", setElement).hidden = true;
+
+    if (focus) {
+      $(".set-notes", setElement).focus();
+    }
   }
 
   function renumberSets(exerciseElement) {
@@ -173,9 +193,14 @@
     $(".set-reps", setElement).value = data.reps ?? "";
     $(".set-time", setElement).value = data.durationSeconds != null ? formatDuration(data.durationSeconds) : "";
     setWeightInput(setElement, data.weightKg);
+    fillPerceivedExertionOptions($(".set-rpe", setElement));
     $(".set-rpe", setElement).value = data.rpe ?? 5;
     $(".set-notes", setElement).value = data.notes ?? "";
-    updatePerceivedExertionLabel(setElement);
+
+    if (data.notes) {
+      showSetNotes(setElement);
+    }
+
     $(".sets", exerciseElement).appendChild(setElement);
     renumberSets(exerciseElement);
 
@@ -258,6 +283,8 @@
     $$(".set").forEach(stopTimer);
     $("#workout-date").value = workout.date || todayIso();
     $("#routine-name").value = workout.routine || "";
+    routineCaptureRequested = false;
+    refreshRoutineList();
     $("#session-notes").value = workout.sessionNotes || "";
     $("#exercises").innerHTML = "";
     (workout.exercises && workout.exercises.length ? workout.exercises : [{}]).forEach(addExercise);
@@ -267,6 +294,7 @@
 
   // ---------- drafts & shared configurations ----------
   let draftTimer = null;
+  let clearedWorkout = null;
 
   function saveDraft() {
     updateEstimate();
@@ -337,7 +365,7 @@
     refreshRoutineList();
     refreshExerciseNames();
     setRoutineStatus(
-      `Loaded ${sharedRoutines.size} shared configuration${sharedRoutines.size === 1 ? "" : "s"}. ` +
+      `Loaded ${sharedRoutines.size} shared routine${sharedRoutines.size === 1 ? "" : "s"}. ` +
       catalog.warnings.join(" "),
       catalog.warnings.length ? "error" : "ok"
     );
@@ -352,7 +380,7 @@
     const unavailable = routinesBusy || !currentUser || !WorkoutRoutines.isConfigured();
     $("#refresh-routines").disabled = unavailable;
     $("#save-routine").disabled = unavailable;
-    $("#load-routine").disabled = unavailable || !routinesLoaded;
+    $("#routine-select").disabled = unavailable || !routinesLoaded;
     $("#export-routine").disabled = routinesBusy || !routinesLoaded;
   }
 
@@ -364,14 +392,22 @@
     const user = currentUser;
     routinesBusy = true;
     updateRoutineButtons();
-    setRoutineStatus("Reading shared configurations...");
+    setRoutineStatus("Loading shared routines…");
 
     try {
       await action(user);
     } catch (error) {
-      if (currentUser === user) {
-        setRoutineStatus(error.message, "error");
+      if (currentUser !== user) {
+        return;
       }
+
+      if (POPUP_ERROR_CODES.has(error.code)) {
+        setRoutineStatus("Open Routine actions and choose Refresh routines to allow access to shared routines.");
+
+        return;
+      }
+
+      setRoutineStatus(error.message, "error");
     } finally {
       routinesBusy = false;
       updateRoutineButtons();
@@ -398,9 +434,38 @@
     return [...sharedRoutines.values()].find(routine => routine.name.toLowerCase() === lower) || null;
   }
 
+  function loadRoutine(name) {
+    const routine = findRoutine(name);
+
+    if (!routine) {
+      setRoutineStatus(`No loaded routine called "${name}". Use Refresh routines to update the list.`, "error");
+
+      return;
+    }
+
+    renderWorkout({ date: $("#workout-date").value, routine: routine.name, exercises: routine.exercises });
+    setRoutineStatus(`Loaded "${routine.name}", saved by ${routine.savedBy}. ` +
+      `Estimated time: ${formatEstimate(routine.estimatedSeconds)}.`, "ok");
+  }
+
   function refreshRoutineList() {
-    $("#routine-list").innerHTML = [...sharedRoutines.keys()].sort()
-      .map(routineName => `<option value="${escapeMarkup(routineName)}"></option>`).join("");
+    const routineName = $("#routine-name").value;
+    const routineSelect = $("#routine-select");
+    routineSelect.innerHTML = '<option value="" disabled>Choose a routine</option>' +
+      [...sharedRoutines.keys()].sort()
+        .map(name => `<option value="${escapeMarkup(name)}">${escapeMarkup(name)}</option>`).join("") +
+      '<option value="" data-capture-new="true">Capture new</option>';
+    routineSelect.value = sharedRoutines.has(routineName) ? routineName : "";
+    setRoutineCaptureMode(routineCaptureRequested || !sharedRoutines.size ||
+      Boolean(routineName && !sharedRoutines.has(routineName)));
+  }
+
+  function setRoutineCaptureMode(captureActive) {
+    $("#routine-select").hidden = captureActive;
+    $("#routine-capture").hidden = !captureActive;
+    $("#choose-saved-routine").hidden = !captureActive || !sharedRoutines.size;
+    $("#routine-label").htmlFor = captureActive ? "routine-name" : "routine-select";
+    updateRoutineButtons();
   }
 
   function exportRoutines() {
@@ -613,15 +678,26 @@
 
     const form = $("#workout-form");
     form.addEventListener("submit", submitWorkout);
-    form.addEventListener("input", event => {
-      if (event.target.classList.contains("set-rpe")) {
-        updatePerceivedExertionLabel(event.target.closest(".set"));
-      }
-
+    form.addEventListener("input", () => {
+      $("#undo-clear").hidden = true;
+      clearedWorkout = null;
       saveDraft();
     });
     form.addEventListener("change", event => {
       const target = event.target;
+
+      if (target.id === "routine-select") {
+        const captureNew = target.selectedOptions[0].dataset.captureNew === "true";
+        $("#routine-name").value = captureNew ? "" : target.value;
+        routineCaptureRequested = captureNew;
+        setRoutineCaptureMode(captureNew);
+
+        if (captureNew) {
+          $("#routine-name").focus();
+        } else {
+          loadRoutine(target.value);
+        }
+      }
 
       if (target.classList.contains("ex-measure")) {
         target.closest(".exercise").dataset.measure = target.value;
@@ -673,6 +749,10 @@
         toggleTimer(setElement);
 
         return;
+      } else if (button.classList.contains("set-add-note")) {
+        showSetNotes(setElement, true);
+
+        return;
       } else {
         return;
       }
@@ -687,6 +767,21 @@
     });
 
     $("#refresh-routines").addEventListener("click", loadSharedRoutines);
+
+    $("#clear-routine-name").addEventListener("click", () => {
+      $("#routine-name").value = "";
+      $("#routine-name").dispatchEvent(new Event("input", { bubbles: true }));
+      $("#routine-name").focus();
+    });
+
+    $("#choose-saved-routine").addEventListener("click", () => {
+      $("#routine-name").value = "";
+      $("#routine-select").value = "";
+      routineCaptureRequested = false;
+      setRoutineCaptureMode(false);
+      $("#routine-select").dispatchEvent(new Event("input", { bubbles: true }));
+      $("#routine-select").focus();
+    });
 
     $("#save-routine").addEventListener("click", () => {
       $$(".set").forEach(stopTimer);
@@ -706,49 +801,61 @@
 
         if (currentUser === user) {
           applyRoutineCatalog(catalog);
-          setRoutineStatus(`Saved configuration "${workout.routine}" by ${user.email}. ` +
+          setRoutineStatus(`Saved routine "${workout.routine}" by ${user.email}. ` +
             `Estimated time: ${formatEstimate(estimateSeconds(workout))}. ` + catalog.warnings.join(" "),
             catalog.warnings.length ? "error" : "ok");
         }
       });
     });
 
-    $("#load-routine").addEventListener("click", () => {
-      const name = $("#routine-name").value.trim();
-
-      if (!name) {
-        setStatus("Type or pick a routine name first.", "error");
-
-        return;
-      }
-
-      const routine = findRoutine(name);
-
-      if (!routine) {
-        setRoutineStatus(`No loaded configuration called "${name}". Load shared configurations to refresh the list.`, "error");
-
-        return;
-      }
-
-      renderWorkout({ date: $("#workout-date").value, routine: routine.name, exercises: routine.exercises });
-      saveDraft();
-      setRoutineStatus(`Loaded "${routine.name}", saved by ${routine.savedBy}. ` +
-        `Estimated time: ${formatEstimate(routine.estimatedSeconds)}.`, "ok");
-    });
-
     $("#export-routine").addEventListener("click", () => {
       exportRoutines();
-      setRoutineStatus(`Exported ${sharedRoutines.size} loaded configurations in the routines.json format.`, "ok");
+      setRoutineStatus(`Exported ${sharedRoutines.size} loaded routines in the routines.json format.`, "ok");
     });
 
     $("#clear-workout").addEventListener("click", () => {
-      if (!confirm("Clear the current workout?")) {
+      $$(".set").forEach(stopTimer);
+      clearedWorkout = collectWorkout();
+      clearTimeout(draftTimer);
+      renderWorkout({});
+      localStorage.removeItem(STORAGE_KEYS.draft);
+      setStatus("Workout cleared.");
+      $("#undo-clear").hidden = false;
+      $("#undo-clear").focus();
+    });
+
+    $("#undo-clear").addEventListener("click", () => {
+      if (!clearedWorkout) {
         return;
       }
 
-      renderWorkout({});
-      localStorage.removeItem(STORAGE_KEYS.draft);
-      setStatus("");
+      renderWorkout(clearedWorkout);
+      clearedWorkout = null;
+      saveDraft();
+      $("#undo-clear").hidden = true;
+      setStatus("Workout restored.", "ok");
+      $("#clear-workout").focus();
+    });
+
+    $("#routine-actions").addEventListener("click", event => {
+      if (event.target.closest(".actions-panel button")) {
+        $("#routine-actions").open = false;
+      }
+    });
+
+    document.addEventListener("click", event => {
+      if (!event.target.closest("#routine-actions")) {
+        $("#routine-actions").open = false;
+      }
+    });
+
+    $("#routine-actions").addEventListener("keydown", event => {
+      if (event.key !== "Escape" || !$("#routine-actions").open) {
+        return;
+      }
+
+      $("#routine-actions").open = false;
+      $("#routine-actions summary").focus();
     });
 
     $("#retry-queue").addEventListener("click", async () => {

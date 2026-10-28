@@ -33,6 +33,7 @@ function createEnvironment(options = {}) {
       append(...children) { this.children.push(...children); },
       replaceChildren(...children) { this.children = children; },
       addEventListener(name, callback) { this.events[name] = callback; },
+      focus() { this.focused = true; },
       scrollIntoView() {},
       reportValidity() { return true; }
     };
@@ -46,7 +47,7 @@ function createEnvironment(options = {}) {
   [
     "measurement-fields", "measurement-date", "measurement-form", "measurement-status",
     "measurement-history", "measurement-queue", "measurement-queue-text", "submit-measurements",
-    "retry-measurements", "clear-measurements", "measurements-view", "login-view", "setup-warning"
+    "retry-measurements", "clear-measurements", "undo-clear-measurements", "measurements-view", "login-view", "setup-warning"
   ].forEach(name => elements.set(`#${name}`, createElement()));
   const window = {
     WORKOUT_CONFIG: { measurementsForm: options.configuration || CONFIGURATION },
@@ -118,9 +119,22 @@ function createEnvironment(options = {}) {
       units = nextUnits;
       events["workout:unitschange"]({ detail: { previousUnits } });
     },
+    fieldGroups: () => element("measurement-fields").children.map(fieldset => ({
+      title: fieldset.children[0].textContent,
+      fields: fieldset.children[1].children.map(label => label.children[0].textContent.split(" (")[0])
+    })),
     records: (email = "current@example.com") => JSON.parse(storage.get(storageKey(email)) || "[]")
   };
 }
+
+test("renders circumference fields in the requested order", () => {
+  const environment = createEnvironment();
+  const circumference = environment.fieldGroups().find(group => group.title === "Circumference");
+  assert.deepEqual(circumference.fields, [
+    "Neck", "Shoulders", "Chest", "Waist", "Belly", "Butt", "Bicep L", "Bicep R",
+    "Forearm L", "Forearm R", "Thigh L", "Thigh R", "Calf L", "Calf R"
+  ]);
+});
 
 test("sends one complete metric response through the shared Forms helper", async () => {
   const environment = createEnvironment();
@@ -170,6 +184,101 @@ test("converts imperial input to canonical form units and preserves zero and opt
   assert.equal(Number(body.get(CONFIGURATION.fields.waterLitres)), 0.295735295625);
   assert.equal(body.get(CONFIGURATION.fields.sleepHours), "0");
   assert.equal(body.has(CONFIGURATION.fields.mood), false);
+});
+
+test("undo restores cleared fields and date exactly without changing history or pending submissions", async () => {
+  const environment = createEnvironment();
+  environment.signIn();
+  environment.controls.failNetwork = true;
+  environment.set("mood", "good");
+  await environment.submit();
+  const storedRecords = JSON.stringify(environment.records());
+  const requestCount = environment.requests.length;
+  environment.set("date", "2026-10-25");
+  environment.set("weight", "72.12345");
+  environment.set("sleep", "0");
+  environment.set("energy", "strong");
+  environment.element("clear-measurements").events.click();
+  assert.equal(environment.element("measurement-weight").value, "");
+  assert.equal(environment.element("measurement-mood").value, "");
+  assert.equal(environment.element("undo-clear-measurements").hidden, false);
+  assert.equal(environment.element("undo-clear-measurements").focused, true);
+  assert.match(environment.element("measurement-status").textContent, /Fields cleared/);
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-date").value, "2026-10-25");
+  assert.equal(environment.element("measurement-weight").value, "72.12345");
+  assert.equal(environment.element("measurement-sleep").value, "0");
+  assert.equal(environment.element("measurement-neck").value, "");
+  assert.equal(environment.element("measurement-energy").value, "strong");
+  assert.equal(environment.element("measurement-mood").value, "good");
+  assert.equal(environment.element("undo-clear-measurements").hidden, true);
+  assert.equal(environment.element("clear-measurements").focused, true);
+  assert.match(environment.element("measurement-status").textContent, /Fields restored/);
+  assert.equal(JSON.stringify(environment.records()), storedRecords);
+  assert.equal(environment.requests.length, requestCount);
+});
+
+test("undo restores cleared values using the current units", () => {
+  const environment = createEnvironment({ units: "imperial" });
+  environment.signIn();
+  environment.set("neck", 10);
+  environment.set("weight", 100);
+  environment.set("water", 10);
+  environment.set("sleep", 8);
+  environment.set("mood", "great");
+  environment.element("clear-measurements").events.click();
+  environment.changeUnits("metric");
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-neck").value, "25.4");
+  assert.equal(environment.element("measurement-weight").value, "45.36");
+  assert.equal(environment.element("measurement-water").value, "0.3");
+  assert.equal(environment.element("measurement-sleep").value, "8");
+  assert.equal(environment.element("measurement-mood").value, "great");
+});
+
+test("editing fields or the date invalidates undo", () => {
+  for (const eventName of ["input", "change"]) {
+    const environment = createEnvironment();
+    environment.signIn();
+    environment.set("weight", 80);
+    environment.element("clear-measurements").events.click();
+    environment.set("date", "2026-10-24");
+    environment.element("measurement-form").events[eventName]();
+    assert.equal(environment.element("undo-clear-measurements").hidden, true);
+    environment.element("undo-clear-measurements").events.click();
+    assert.equal(environment.element("measurement-weight").value, "");
+    assert.equal(environment.element("measurement-date").value, "2026-10-24");
+  }
+});
+
+test("sign-out and account switching discard cleared fields", () => {
+  const environment = createEnvironment();
+  environment.signIn();
+  environment.set("weight", 80);
+  environment.element("clear-measurements").events.click();
+  environment.signOut();
+  assert.equal(environment.element("undo-clear-measurements").hidden, true);
+  environment.signIn("other@example.com");
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-weight").value, "");
+  environment.set("weight", 90);
+  environment.element("clear-measurements").events.click();
+  environment.signIn("current@example.com");
+  assert.equal(environment.element("undo-clear-measurements").hidden, true);
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-weight").value, "");
+});
+
+test("submitting the form discards cleared fields", async () => {
+  const environment = createEnvironment();
+  environment.signIn();
+  environment.set("weight", 80);
+  environment.element("clear-measurements").events.click();
+  await environment.submit();
+  assert.equal(environment.element("undo-clear-measurements").hidden, true);
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-weight").value, "");
+  assert.equal(environment.requests.length, 0);
 });
 
 test("retains failures across reload and retries on sign-in using the same measurement ID", async () => {
@@ -302,7 +411,12 @@ test("editing local history submits a new response without replacing an earlier 
   await environment.submit();
   const date = environment.records()[0].date;
   const historyEntry = environment.element("measurement-history").children[0].children[0];
+  environment.set("weight", 90);
+  environment.element("clear-measurements").events.click();
   historyEntry.children[1].events.click();
+  assert.equal(environment.element("undo-clear-measurements").hidden, true);
+  environment.element("undo-clear-measurements").events.click();
+  assert.equal(environment.element("measurement-weight").value, "");
   assert.equal(environment.element("measurement-date").value, date);
   assert.equal(environment.element("measurement-mood").value, "fair");
   environment.set("mood", "great");

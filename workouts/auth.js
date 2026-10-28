@@ -6,6 +6,7 @@
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const SESSION_USER_STORAGE_KEY = "workout.user";
   const SESSION_DURATION_HOURS = 12;
+  const OAUTH_LIBRARY_WAIT_MILLISECONDS = 10000;
   const $ = selector => document.querySelector(selector);
 
   let currentUser = null;
@@ -162,16 +163,34 @@
     handlers.onSignOut();
   }
 
+  function waitForOauthLibrary() {
+    return new Promise((resolve, reject) => {
+      const startedAt = Date.now();
+      const check = () => {
+        if (window.google?.accounts?.oauth2) {
+          resolve();
+
+          return;
+        }
+
+        if (Date.now() - startedAt >= OAUTH_LIBRARY_WAIT_MILLISECONDS) {
+          reject(new Error("Google sign-in library has not loaded yet."));
+
+          return;
+        }
+
+        setTimeout(check, 100);
+      };
+      check();
+    });
+  }
+
   // Requests an OAuth access token for the signed-in user. Must be called from a user gesture
   // the first time, because Google may open a consent popup.
-  function requestAccessToken(scopes) {
+  async function requestAccessToken(scopes) {
+    await waitForOauthLibrary();
+
     return new Promise((resolve, reject) => {
-      if (!window.google?.accounts?.oauth2) {
-        reject(new Error("Google sign-in library has not loaded yet."));
-
-        return;
-      }
-
       const client = google.accounts.oauth2.initTokenClient({
         client_id: WORKOUT_CONFIGURATION.googleClientId,
         scope: scopes.join(" "),

@@ -18,10 +18,10 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
-    <h1>Fitness Trends</h1>
-    <nav class="nav"><a href="./">Log</a><a href="trends.html" aria-current="page">Trends</a><a href="measurements.html">Measurements</a></nav>
+    <h1>Trends</h1>
+    <nav class="nav" aria-label="Fitness pages"><a href="./">Log</a><a href="trends.html" aria-current="page">Trends</a><a href="measurements.html">Measurements</a></nav>
     <details id="settings-menu" class="settings-menu">
-      <summary class="btn ghost small">Settings</summary>
+      <summary class="btn ghost small" title="Settings"><span class="settings-icon" aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
       <div class="settings-panel card">
         <h2>Settings</h2>
         <label class="field" for="theme-select">Theme
@@ -73,7 +73,7 @@
     <section id="trends-view" hidden>
       <div class="card toolbar">
         <button type="button" id="load-data" class="btn primary">Load my data</button>
-        <label class="field inline">User
+        <label id="user-field" class="field inline" hidden>User
           <select id="user-select" disabled></select>
         </label>
         <label class="field inline">Period
@@ -128,14 +128,25 @@
             <code>form</code> and <code>configurationForm</code> blocks with those printed in step 3,
             and optionally set <code>allowedEmails</code>.
           </li>
-          <li><strong>Save your configurations.</strong> On the Log page, enter exercises and sets under a unique
-            workout name and press <em>Save configuration</em>. Use <em>Load shared configurations</em> to see
-            workouts saved by all users. <em>Export configurations (JSON)</em> downloads the loaded configurations
-            as a backup; no routines file needs to be committed.</li>
+          <li><strong>Save your routines.</strong> On the Log page, enter exercises and sets under a unique
+            routine name and choose <em>Routine actions &rarr; Save as routine</em>. Shared routines saved by all users
+            load automatically; <em>Routine actions &rarr; Refresh routines</em> reloads them, and
+            <em>Export routines (JSON)</em> downloads them as a backup; no routines file needs to be committed.</li>
           <li><strong>Commit and push.</strong> After GitHub Pages redeploys, sign in on your own site to log workouts
             and view your trends.</li>
         </ol>
         <p class="muted">The full guide is in the repository's README.</p>
+      </section>
+
+      <section id="trends-empty" class="card empty-state">
+        <h2>Your trends will appear here</h2>
+        <p class="muted">Once your workouts load, you'll see:</p>
+        <ul class="empty-preview">
+          <li><strong>Summary</strong> - workouts, sets, reps, training time and average difficulty</li>
+          <li><strong>Routines</strong> - how often you did each routine, when you last did it, and difficulty change</li>
+          <li><strong>Exercise trend</strong> - a chart of one exercise over time</li>
+          <li><strong>All exercises</strong> - a table of every exercise in the period</li>
+        </ul>
       </section>
 
       <div id="results" hidden>

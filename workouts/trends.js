@@ -66,6 +66,7 @@
     $("#fork-reason").textContent = reason;
     $("#fork-help").hidden = false;
     $("#results").hidden = true;
+    $("#trends-empty").hidden = true;
   }
 
   // ---------- access token ----------
@@ -167,8 +168,10 @@
     allRows = [];
     loadedAt = null;
     $("#results").hidden = true;
+    $("#trends-empty").hidden = false;
     $("#user-select").innerHTML = "";
     $("#user-select").disabled = true;
+    $("#user-field").hidden = true;
     setStatus("Loading your workouts…");
 
     try {
@@ -275,6 +278,7 @@
     }
 
     select.disabled = !users.length;
+    $("#user-field").hidden = users.length < 2;
   }
 
   function applyUser() {
@@ -405,6 +409,7 @@
   function render() {
     const list = inRange(rows);
     $("#results").hidden = false;
+    $("#trends-empty").hidden = true;
     const sessions = summarizeSessions(list);
     renderSummary(list, sessions);
     renderRoutines(sessions);
@@ -692,12 +697,8 @@
       return;
     }
 
-    // Without a cached token, wait for a click so the Google consent popup isn't blocked.
-    if (cachedToken()) {
-      loadData(false);
-    } else {
-      setStatus("Press Load my data to read your workouts from the Google Form.");
-    }
+    // Without a cached token Google may need a popup; the load reports that as a prompt to press the button.
+    loadData(false);
   }
 
   function onSignOut() {
@@ -707,8 +708,10 @@
     allRows = [];
     $("#user-select").innerHTML = "";
     $("#user-select").disabled = true;
+    $("#user-field").hidden = true;
     $("#trends-view").hidden = true;
     $("#results").hidden = true;
+    $("#trends-empty").hidden = false;
     $("#fork-help").hidden = true;
     setStatus("");
   }

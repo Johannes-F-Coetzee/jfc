@@ -152,6 +152,9 @@ body {
 
 .settings-menu summary {
   list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .settings-menu summary::-webkit-details-marker {
@@ -249,6 +252,11 @@ textarea {
   padding: 0.5rem;
   width: 100%;
   min-width: 0;
+  min-height: 2.5rem;
+}
+
+select:has(option[value=""]:checked) {
+  color: var(--muted);
 }
 
 input:focus,
@@ -306,6 +314,101 @@ input[type="range"] {
   margin-top: 1rem;
 }
 
+.btn.link {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn.link:hover {
+  color: var(--text);
+}
+
+.routine-picker {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.routine-picker > select,
+.routine-capture {
+  flex: 1;
+  min-width: 0;
+}
+
+.routine-capture {
+  position: relative;
+}
+
+.routine-capture input {
+  padding-right: 3rem;
+}
+
+.routine-capture .icon-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 2.75rem;
+  height: auto;
+}
+
+#choose-saved-routine {
+  align-self: flex-start;
+}
+
+.actions-menu {
+  position: relative;
+  display: inline-block;
+  margin-top: 0.75rem;
+}
+
+.actions-menu summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.actions-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.actions-menu summary::after {
+  content: " \25BE";
+}
+
+.actions-panel {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 14rem;
+  padding: 0.5rem;
+  margin: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.actions-panel .btn {
+  text-align: left;
+}
+
+.clear-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clear-row .status {
+  flex: 1;
+  margin: 0;
+}
+
 .icon-btn {
   background: transparent;
   border: none;
@@ -346,7 +449,8 @@ input[type="range"] {
 
 .set {
   display: grid;
-  grid-template-columns: 2rem minmax(90px, 1fr) minmax(90px, 1fr) minmax(170px, 1.6fr) minmax(120px, 1.5fr) auto;
+  grid-template-columns: 2rem minmax(90px, 1fr) minmax(90px, 1fr) minmax(140px, 1.2fr) minmax(120px, 1.5fr) auto;
+  grid-template-areas: "no a b rpe extra x";
   gap: 0.5rem;
   align-items: end;
   padding: 0.5rem 0;
@@ -354,6 +458,7 @@ input[type="range"] {
 }
 
 .set-no {
+  grid-area: no;
   align-self: center;
   width: 2rem;
   height: 2rem;
@@ -363,6 +468,33 @@ input[type="range"] {
   background: var(--border);
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.set .reps-field,
+.set .time-field {
+  grid-area: a;
+}
+
+.set .weight-field {
+  grid-area: b;
+}
+
+.set .rpe-field {
+  grid-area: rpe;
+}
+
+.set .notes-field,
+.set .set-add-note {
+  grid-area: extra;
+}
+
+.set .set-add-note {
+  justify-self: start;
+  align-self: center;
+}
+
+.set .set-remove {
+  grid-area: x;
 }
 
 .exercise[data-measure="reps"] .time-field,
@@ -382,20 +514,6 @@ input[type="range"] {
 .set-timer.running {
   background: var(--error);
   color: var(--bg);
-}
-
-.rpe {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.4rem;
-}
-
-.rpe-out {
-  white-space: nowrap;
-  color: var(--text);
-  font-size: 0.85rem;
-  min-width: 6.5rem;
 }
 
 .submit-row {
@@ -459,10 +577,68 @@ input[type="range"] {
   border-top: none;
 }
 
-.measurement-fields {
+.measurement-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem 0.75rem;
+  margin: 0.75rem 0 0;
+  min-width: 0;
+}
+
+.measurement-group legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.measurement-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.75rem;
+}
+
+.measurement-grid.single {
+  grid-template-columns: minmax(0, 12rem);
+}
+
+.measurement-grid.paired {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.measurement-grid.quad {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.intro {
+  margin-bottom: 0.75rem;
+}
+
+.info-details {
+  display: inline;
+}
+
+.info-details summary {
+  display: inline;
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.info-details[open] {
+  display: block;
+  margin-top: 0.35rem;
+}
+
+.empty-state ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+}
+
+.empty-state li {
+  margin-bottom: 0.35rem;
+}
+
+.empty-state strong {
+  color: var(--text);
 }
 
 .measurement-history-entry {
@@ -669,34 +845,87 @@ tbody tr:hover {
     grid-template-columns: 2rem 1fr 1fr auto;
     grid-template-areas:
       "no a b x"
-      "no rpe rpe rpe"
-      "no notes notes notes";
+      "no rpe extra extra";
   }
 
-  .set-no {
-    grid-area: no;
-    align-self: start;
-  }
-
-  .set .reps-field,
-  .set .time-field {
-    grid-area: a;
-  }
-
-  .set .weight-field {
-    grid-area: b;
-  }
-
-  .set .rpe-field {
-    grid-area: rpe;
-  }
-
-  .set .notes-field {
-    grid-area: notes;
-  }
-
+  .set-no,
   .set .set-remove {
-    grid-area: x;
     align-self: start;
+  }
+
+  .submit-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 1rem -1rem 0;
+    padding: 0.75rem 1rem;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .topbar {
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .topbar h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .nav {
+    flex: 1;
+  }
+
+  .nav a {
+    padding: 0.35rem 0.55rem;
+  }
+
+  #user-name,
+  .settings-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 701px) {
+  .settings-icon {
+    display: none;
+  }
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .btn,
+  .btn.small,
+  .settings-menu summary,
+  .actions-menu summary {
+    min-height: 2.75rem;
+  }
+
+  .nav a,
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .icon-btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .info-details summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
   }
 }

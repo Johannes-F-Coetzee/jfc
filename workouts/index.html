@@ -19,10 +19,10 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
-    <h1>Fitness Tracker</h1>
-    <nav class="nav"><a href="./">Log</a><a href="trends.html">Trends</a><a href="measurements.html">Measurements</a></nav>
+    <h1>Workout log</h1>
+    <nav class="nav" aria-label="Fitness pages"><a href="./" aria-current="page">Log</a><a href="trends.html">Trends</a><a href="measurements.html">Measurements</a></nav>
     <details id="settings-menu" class="settings-menu">
-      <summary class="btn ghost small">Settings</summary>
+      <summary class="btn ghost small" title="Settings"><span class="settings-icon" aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
       <div class="settings-panel card">
         <h2>Settings</h2>
         <label class="field" for="theme-select">Theme
@@ -79,19 +79,27 @@
           <label class="field">Date
             <input type="date" id="workout-date" required>
           </label>
-          <label class="field">Routine
-            <input id="routine-name" list="routine-list" placeholder="e.g. Upper body A" autocomplete="off">
-            <datalist id="routine-list"></datalist>
-          </label>
+          <div class="field">
+            <label id="routine-label" for="routine-name">Routine</label>
+            <span class="routine-picker">
+              <select id="routine-select" hidden></select>
+              <span id="routine-capture" class="routine-capture">
+                <input id="routine-name" placeholder="e.g. Upper body A" autocomplete="off">
+                <button type="button" id="clear-routine-name" class="icon-btn" aria-label="Clear routine name" title="Clear routine name">&times;</button>
+              </span>
+            </span>
+            <button type="button" id="choose-saved-routine" class="btn link" hidden>Choose a saved routine</button>
+          </div>
         </div>
-        <div class="row">
-          <button type="button" id="refresh-routines" class="btn ghost small">Refresh routine configs</button>
-          <button type="button" id="load-routine" class="btn ghost small">Load selected routine</button>
-          <button type="button" id="save-routine" class="btn ghost small">Save routine config</button>
-          <button type="button" id="export-routine" class="btn ghost small"
-            title="Download all shared configurations in the routines.json format">Export configurations (JSON)</button>
-          <button type="button" id="clear-workout" class="btn ghost small">Clear</button>
-        </div>
+        <details id="routine-actions" class="actions-menu">
+          <summary class="btn ghost small">Routine actions</summary>
+          <div class="actions-panel card">
+            <button type="button" id="refresh-routines" class="btn ghost small">Refresh routines</button>
+            <button type="button" id="save-routine" class="btn ghost small">Save as routine</button>
+            <button type="button" id="export-routine" class="btn ghost small"
+              title="Download all shared routines in the routines.json format">Export routines (JSON)</button>
+          </div>
+        </details>
         <p id="routine-status" class="status" role="status" aria-live="polite"></p>
 
         <div id="exercises"></div>
@@ -110,7 +118,11 @@
             Est. time <strong id="estimated-time-value">0:00</strong>
           </span>
         </div>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div class="clear-row">
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+          <button type="button" id="undo-clear" class="btn link" hidden>Undo</button>
+          <button type="button" id="clear-workout" class="btn link">Clear workout</button>
+        </div>
         <div id="queue-box" class="queue" hidden>
           <span id="queue-text"></span>
           <button type="button" id="retry-queue" class="btn ghost small">Retry now</button>
@@ -156,15 +168,13 @@
       <label class="field weight-field"><span class="weight-label">Weight (kg)</span>
         <input class="set-weight" type="number" min="0" step="any" inputmode="decimal">
       </label>
-      <label class="field rpe-field">Perceived difficulty
-        <span class="rpe">
-          <input class="set-rpe" type="range" min="1" max="10" step="1" value="5">
-          <output class="rpe-out"></output>
-        </span>
+      <label class="field rpe-field">Difficulty
+        <select class="set-rpe"></select>
       </label>
-      <label class="field notes-field">Notes
+      <label class="field notes-field" hidden>Notes
         <input class="set-notes" autocomplete="off">
       </label>
+      <button type="button" class="btn link set-add-note">+ Note</button>
       <button type="button" class="icon-btn set-remove" title="Remove set" aria-label="Remove set">&times;</button>
     </div>
   </template>

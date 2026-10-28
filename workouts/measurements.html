@@ -18,10 +18,10 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
-    <h1>Fitness Measurements</h1>
-    <nav class="nav"><a href="./">Log</a><a href="trends.html">Trends</a><a href="measurements.html" aria-current="page">Measurements</a></nav>
+    <h1>Measurements</h1>
+    <nav class="nav" aria-label="Fitness pages"><a href="./">Log</a><a href="trends.html">Trends</a><a href="measurements.html" aria-current="page">Measurements</a></nav>
     <details id="settings-menu" class="settings-menu">
-      <summary class="btn ghost small">Settings</summary>
+      <summary class="btn ghost small" title="Settings"><span class="settings-icon" aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
       <div class="settings-panel card">
         <h2>Settings</h2>
         <label class="field" for="theme-select">Theme
@@ -79,18 +79,25 @@
     <section id="measurements-view" hidden>
       <form id="measurement-form" class="card">
         <h2>Daily measurements and states</h2>
-        <p class="muted">Each submission sends one response to the measurements Google Form. A daily history
-          and pending submissions are kept on this device for your signed-in account. Resubmitting a date
-          adds a new response in Google Forms; it does not edit an earlier response.</p>
+        <div class="muted intro">Each submit adds a new entry to your measurements form.
+          <details class="info-details">
+            <summary>How submissions work</summary>
+            A daily history and pending submissions are kept on this device for your signed-in account.
+            Resubmitting a date adds a new response in Google Forms; it does not edit an earlier response.
+          </details>
+        </div>
         <label class="field" for="measurement-date">Date
           <input type="date" id="measurement-date" required>
         </label>
         <div id="measurement-fields" class="measurement-fields"></div>
-        <div class="row">
+        <div class="submit-row">
           <button type="submit" id="submit-measurements" class="btn primary">Submit measurements</button>
-          <button type="button" id="clear-measurements" class="btn ghost">Clear fields</button>
         </div>
-        <p id="measurement-status" class="status" role="status" aria-live="polite"></p>
+        <div class="clear-row">
+          <p id="measurement-status" class="status" role="status" aria-live="polite"></p>
+          <button type="button" id="undo-clear-measurements" class="btn link" hidden>Undo</button>
+          <button type="button" id="clear-measurements" class="btn link">Clear fields</button>
+        </div>
         <div id="measurement-queue" class="queue" hidden>
           <span id="measurement-queue-text"></span>
           <button type="button" id="retry-measurements" class="btn ghost small">Retry now</button>
