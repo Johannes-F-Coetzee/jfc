@@ -3,6 +3,7 @@
 
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
+  const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
   const STORAGE_KEYS = {
     draft: "workout.draft",
     queue: "workout.queue",
@@ -90,7 +91,7 @@
 
     renderHistory();
     updateQueueUi();
-    flushQueue();
+    retryQueue();
   }
 
   function hideTracker() {
@@ -166,7 +167,7 @@
   function renumberSets(exerciseElement) {
     $$(".set", exerciseElement).forEach((setElement, setIndex) => {
       $(".set-no", setElement).textContent = setIndex + 1;
-    });
+    }, "Saving routine…");
   }
 
   function setWeightInput(setElement, weightKg) {
@@ -384,7 +385,7 @@
     $("#export-routine").disabled = routinesBusy || !routinesLoaded;
   }
 
-  async function runRoutineAction(action) {
+  async function runRoutineAction(action, pendingMessage = "Loading shared routines…") {
     if (routinesBusy || !currentUser) {
       return;
     }
@@ -392,7 +393,7 @@
     const user = currentUser;
     routinesBusy = true;
     updateRoutineButtons();
-    setRoutineStatus("Loading shared routines…");
+    setRoutineStatus(pendingMessage);
 
     try {
       await action(user);
@@ -498,9 +499,7 @@
 
   // ---------- status ----------
   function setStatus(message, kind = "") {
-    const element = $("#status");
-    element.textContent = message;
-    element.className = `status ${kind}`;
+    SUBMISSION_STATUS.set($("#status"), message, kind);
   }
 
   // ---------- Google Forms submission ----------
@@ -516,6 +515,7 @@
     const count = readQueue().length;
     $("#queue-box").hidden = count === 0;
     $("#queue-text").textContent = `${count} set${count === 1 ? "" : "s"} waiting to be sent.`;
+    $("#retry-queue").disabled = flushing || !currentUser || !hasFormConfig();
   }
 
   async function postToForm(row) {
@@ -536,6 +536,7 @@
     }
 
     flushing = true;
+    updateQueueUi();
 
     try {
       let next;
@@ -547,12 +548,27 @@
       }
 
       return true;
-    } catch {
+    } catch (error) {
+      console.error("Could not send queued workouts.", error);
+
       return false;
     } finally {
       flushing = false;
       updateQueueUi();
     }
+  }
+
+  async function retryQueue() {
+    if (!currentUser || !hasFormConfig() || flushing || !readQueue().length) {
+      return;
+    }
+
+    setStatus(SUBMISSION_STATUS.retrying("workout"));
+    const sent = await flushQueue();
+    setStatus(sent
+      ? SUBMISSION_STATUS.retrySent("workout")
+      : SUBMISSION_STATUS.retryQueued("workout"),
+    sent ? "ok" : "error");
   }
 
   function buildRows(workout) {
@@ -646,15 +662,15 @@
     });
     writeJson(localStorage, STORAGE_KEYS.history, history.slice(0, 20));
     $("#submit-workout").disabled = true;
-    setStatus("Sending…");
+    setStatus(SUBMISSION_STATUS.submitting("workout"));
     const sent = await flushQueue();
     $("#submit-workout").disabled = false;
     renderWorkout({ routine: workout.routine, exercises: routineTemplate(workout) });
     localStorage.removeItem(STORAGE_KEYS.draft);
     renderHistory();
     setStatus(sent
-      ? `Workout saved (${rows.length} set${rows.length === 1 ? "" : "s"}).`
-      : "You appear to be offline. The workout is saved on this device and will be sent automatically.",
+      ? `${SUBMISSION_STATUS.sent("workout")} (${rows.length} set${rows.length === 1 ? "" : "s"}).`
+      : SUBMISSION_STATUS.queued("workout"),
       sent ? "ok" : "error");
   }
 
@@ -858,13 +874,9 @@
       $("#routine-actions summary").focus();
     });
 
-    $("#retry-queue").addEventListener("click", async () => {
-      setStatus("Sending…");
-      const sent = await flushQueue();
-      setStatus(sent ? "All pending sets sent." : "Still offline - will retry automatically.", sent ? "ok" : "error");
-    });
+    $("#retry-queue").addEventListener("click", retryQueue);
 
-    window.addEventListener("online", () => currentUser && flushQueue());
+    window.addEventListener("online", retryQueue);
   }
 
   // ---------- boot ----------

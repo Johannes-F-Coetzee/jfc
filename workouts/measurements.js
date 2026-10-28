@@ -45,6 +45,7 @@
   });
   const REQUIRED_FORM_FIELDS = ["email", "measurementId", "date", ...FORM_FIELD_NAMES];
   const ACTIVE_SUBMISSIONS = new Set();
+  const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
   const CENTIMETRES_PER_INCH = 2.54;
   const LITRES_PER_FLUID_OUNCE = 0.0295735295625;
   const $ = selector => document.querySelector(selector);
@@ -268,9 +269,7 @@
   }
 
   function showStatus(message, isError = false) {
-    const status = $("#measurement-status");
-    status.textContent = message;
-    status.className = isError ? "status error" : "status ok";
+    SUBMISSION_STATUS.set($("#measurement-status"), message, isError ? "error" : "ok");
   }
 
   function readRecords(key) {
@@ -363,7 +362,7 @@
       console.error("Could not send queued measurements.", error);
 
       if (storageKey === ownerKey) {
-        showStatus(`Measurements remain queued on this device. Retry when connected. ${error.message}`, true);
+        showStatus(`${SUBMISSION_STATUS.retryQueued("measurement")} ${error.message}`, true);
       }
 
       return false;
@@ -377,15 +376,17 @@
   }
 
   async function retryQueue() {
-    if (!records.some(record => record.pendingSubmissions?.length)) {
+    if (!storageKey || !hasFormConfiguration() || ACTIVE_SUBMISSIONS.has(storageKey) ||
+      !records.some(record => record.pendingSubmissions?.length)) {
       return;
     }
 
     const ownerKey = storageKey;
+    showStatus(SUBMISSION_STATUS.retrying("measurement"));
     const sent = await flushQueue();
 
     if (sent && storageKey === ownerKey) {
-      showStatus("Measurement requests sent. Google Forms does not confirm storage to this browser.");
+      showStatus(SUBMISSION_STATUS.retrySent("measurement"));
     }
   }
 
@@ -542,7 +543,7 @@
 
     renderHistory();
     updateQueue();
-    showStatus(`Entry for ${date} saved on this device. Sending measurements...`);
+    showStatus(SUBMISSION_STATUS.submitting("measurement"));
     await retryQueue();
   }
 
