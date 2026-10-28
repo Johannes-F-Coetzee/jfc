@@ -294,8 +294,6 @@
   }
 
   function handleLoadError(error, interactive) {
-    WorkoutAuth.clearCachedToken();
-
     if (error instanceof GOOGLE_FORMS_REQUEST_ERROR ) {
       if (error.reason === "SERVICE_DISABLED" || error.reason === "accessNotConfigured") {
         showForkHelp("The Google Forms API isn't enabled in this site's Google Cloud project.");

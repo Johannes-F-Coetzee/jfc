@@ -317,6 +317,23 @@ test("sign-out clears both token keys and rejects an in-flight token for the pre
   assert.equal(environment.storage.has("workout.formsToken"), false);
 });
 
+test("missing Forms access requests a new token again after a successful read", async () => {
+  const environment = createEnvironment();
+  environment.signIn();
+  const firstTokenRequest = environment.auth.getFormsAccessToken();
+  await settle();
+  environment.respond();
+  assert.equal(await firstTokenRequest, "new-token");
+  assert.equal(await environment.auth.getFormsAccessToken(), "new-token");
+
+  environment.auth.clearCachedToken();
+  const renewedToken = environment.auth.getFormsAccessToken();
+  await settle();
+  assert.equal(environment.requests.length, 2);
+  environment.respond({ access_token: "renewed-token" }, 1);
+  assert.equal(await renewedToken, "renewed-token");
+});
+
 test("account switching invalidates cached and in-flight tokens without replacing the new account's cache", async () => {
   const environment = createEnvironment();
   environment.signIn();

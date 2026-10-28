@@ -232,7 +232,7 @@
   }
 
   // Requests an OAuth access token for the signed-in user. Must be called from a user gesture
-  // the first time, because Google may open a consent popup.
+  // whenever a usable cached token is unavailable, because Google may open a consent popup.
   async function requestAccessToken(scopes) {
     if (!hasConfiguredGoogleClientIdentifier()) {
       throw new Error("Google sign-in is not configured for this site.");

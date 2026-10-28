@@ -223,7 +223,7 @@ test("measurement read failures remain separate from successful workout data", a
   assert.equal(environment.element("#results").hidden, false);
 });
 
-test("workout permission failures still show setup help and invalidate the shared token", async () => {
+test("workout permission failures still show setup help without discarding the shared token", async () => {
   let forms;
   const environment = createEnvironment({
     configuration: CONFIGURATION,
@@ -234,7 +234,7 @@ test("workout permission failures still show setup help and invalidate the share
   await settle();
   assert.equal(environment.element("#fork-help").hidden, false);
   assert.match(environment.element("#fork-reason").textContent, /doesn't have access/);
-  assert.equal(environment.clearCount, 1);
+  assert.equal(environment.clearCount, 0);
 });
 
 test("automatic and interactive popup failures retain their page-specific guidance", async () => {
