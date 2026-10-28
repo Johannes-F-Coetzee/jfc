@@ -404,21 +404,39 @@ test("legacy device-only history stays local until explicitly resubmitted", asyn
   assert.equal(environment.records()[0].values.neck, 30);
 });
 
-test("editing local history submits a new response without replacing an earlier form response", async () => {
+test("measurement history is read-only and still displays saved dates and values", async () => {
+  const storage = new Map([[storageKey("current@example.com"),
+    JSON.stringify([{ date: "2026-10-26", values: { neck: 30, mood: "fair" } }])]]);
+  const environment = createEnvironment({ storage });
+  environment.signIn();
+  await settle();
+  const historyEntry = environment.element("measurement-history").children[0].children[0];
+  assert.equal(historyEntry.children.length, 1);
+  const details = historyEntry.children[0];
+  assert.equal(details.children[0].textContent, "2026-10-26");
+  assert.deepEqual(details.children[1].children.map(value => value.textContent), [
+    "Neck: 30 cm", "Mood: fair"
+  ]);
+  const assertReadOnly = element => {
+    assert.equal(element.events.click, undefined);
+
+    for (const child of element.children) {
+      assertReadOnly(child);
+    }
+  };
+  assertReadOnly(historyEntry);
+  assert.equal(environment.requests.length, 0);
+  assert.equal(environment.element("measurement-neck").value, "");
+  assert.equal(environment.element("measurement-mood").value, "");
+});
+
+test("submitting the same date adds a new response without replacing an earlier form response", async () => {
   const environment = createEnvironment();
   environment.signIn();
   environment.set("mood", "fair");
   await environment.submit();
   const date = environment.records()[0].date;
-  const historyEntry = environment.element("measurement-history").children[0].children[0];
-  environment.set("weight", 90);
-  environment.element("clear-measurements").events.click();
-  historyEntry.children[1].events.click();
-  assert.equal(environment.element("undo-clear-measurements").hidden, true);
-  environment.element("undo-clear-measurements").events.click();
-  assert.equal(environment.element("measurement-weight").value, "");
-  assert.equal(environment.element("measurement-date").value, date);
-  assert.equal(environment.element("measurement-mood").value, "fair");
+  environment.set("date", date);
   environment.set("mood", "great");
   await environment.submit();
   assert.equal(environment.requests.length, 2);

@@ -196,20 +196,6 @@
     return values;
   }
 
-  function populateForm(record) {
-    discardClearedFields();
-    $("#measurement-date").value = record.date;
-    FIELD_DEFINITIONS.forEach(field => {
-      const input = $(`#measurement-${field.key}`);
-      const value = record.values[field.key];
-      input.value = value === undefined ? "" :
-        field.kind === "number" ? String(Number(fromCanonical(field, value).toFixed(2))) : value;
-    });
-    $("#measurement-status").textContent = `Editing entry for ${record.date}.`;
-    $("#measurement-status").className = "status";
-    $("#measurement-form").scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   function formatValue(field, value) {
     if (field.kind === "select") {
       return value;
@@ -257,12 +243,7 @@
       });
 
       details.append(values);
-      const edit = document.createElement("button");
-      edit.type = "button";
-      edit.className = "btn ghost small";
-      edit.textContent = "Edit";
-      edit.addEventListener("click", () => populateForm(record));
-      entry.append(details, edit);
+      entry.append(details);
       item.append(entry);
       list.append(item);
     });
