@@ -682,6 +682,24 @@ a {
 }
 
 /* ---------- trends page ---------- */
+.trend-section > summary {
+  cursor: pointer;
+}
+
+.trend-section > summary h2 {
+  display: inline;
+  margin: 0;
+}
+
+.trend-section[open] > summary {
+  margin-bottom: 1rem;
+}
+
+.trend-section > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

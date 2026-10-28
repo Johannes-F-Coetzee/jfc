@@ -68,7 +68,7 @@
   <main>
     <section id="login-view" class="card center">
       <h2>Sign in</h2>
-      <p>Sign in with your Google account to see your routines and exercise trends.</p>
+      <p>Sign in with your Google account to see your workout and measurement trends.</p>
       <div id="google-signin-button"></div>
       <p id="login-error" class="error" role="alert"></p>
     </section>
@@ -88,6 +88,7 @@
           </select>
         </label>
         <p id="trends-status" class="status" role="status" aria-live="polite"></p>
+        <p id="section-state-status" class="status error" role="status" aria-live="polite" hidden></p>
       </div>
 
       <section id="fork-help" class="card warning" hidden>
@@ -145,12 +146,14 @@
 
       <section id="trends-empty" class="card empty-state">
         <h2>Your trends will appear here</h2>
-        <p class="muted">Once your workouts load, you'll see:</p>
+        <p class="muted">Once your data loads, you'll see:</p>
         <ul class="empty-preview">
           <li><strong>Summary</strong> - workouts, sets, reps, training time and average difficulty</li>
           <li><strong>Routines</strong> - how often you did each routine, when you last did it, and difficulty change
           </li>
           <li><strong>Exercise trend</strong> - a chart of one exercise over time</li>
+          <li><strong>Measurement trend</strong> - charts and history for body measurements and daily states</li>
+          <li><strong>All measurements</strong> - latest values and changes for each recorded metric</li>
           <li><strong>All exercises</strong> - a table of every exercise in the period</li>
         </ul>
       </section>
@@ -165,8 +168,8 @@
           </div>
         </section>
 
-        <section class="card">
-          <h2>Exercise trend</h2>
+        <details id="exercise-trend-section" class="card trend-section" open>
+          <summary><h2>Exercise trend</h2></summary>
           <div class="grid">
             <label class="field">Exercise
               <select id="exercise-select"></select>
@@ -179,14 +182,33 @@
           <div class="table-wrap">
             <table id="exercise-table"></table>
           </div>
-        </section>
+        </details>
 
-        <section class="card">
-          <h2>All exercises</h2>
+        <details id="measurement-trend-section" class="card trend-section" open>
+          <summary><h2>Measurement trend</h2></summary>
+          <p id="measurement-trends-status" class="status" role="status" aria-live="polite"></p>
+          <label class="field">Metric
+            <select id="measurement-metric-select"></select>
+          </label>
+          <div id="measurement-chart" class="chart"></div>
+          <div class="table-wrap">
+            <table id="measurement-table"></table>
+          </div>
+        </details>
+
+        <details id="all-exercises-section" class="card trend-section" open>
+          <summary><h2>All exercises</h2></summary>
           <div class="table-wrap">
             <table id="exercises-table"></table>
           </div>
-        </section>
+        </details>
+
+        <details id="all-measurements-section" class="card trend-section" open>
+          <summary><h2>All measurements</h2></summary>
+          <div class="table-wrap">
+            <table id="all-measurements-table"></table>
+          </div>
+        </details>
       </div>
     </section>
   </main>

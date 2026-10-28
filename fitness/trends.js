@@ -3,6 +3,7 @@
 
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
+  const MEASUREMENTS_FORM_CONFIGURATION = WORKOUT_CONFIGURATION.measurementsForm || {};
   const FORMS_READ_PERMISSIONS = WorkoutForms.READ_PERMISSIONS;
   const GOOGLE_FORMS_REQUEST_ERROR = WorkoutForms.RequestError;
   const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
@@ -18,11 +19,65 @@
     "weight (kg)": "weightKg", "perceived difficulty (rpe 1-10)": "rpe", "set notes": "notes",
     "session notes": "sessionNotes"
   };
+  const MEASUREMENT_QUESTION_FIELD_NAMES = {
+    "email": "email", "measurement id": "measurementId", "measurement date": "date",
+    "neck (cm)": "neckCm", "bicep l (cm)": "bicepLCm", "bicep r (cm)": "bicepRCm",
+    "forearm l (cm)": "forearmLCm", "forearm r (cm)": "forearmRCm",
+    "shoulders (cm)": "shouldersCm", "chest (cm)": "chestCm", "waist (cm)": "waistCm",
+    "belly (cm)": "bellyCm", "butt (cm)": "buttCm", "thigh l (cm)": "thighLCm",
+    "thigh r (cm)": "thighRCm", "calf l (cm)": "calfLCm", "calf r (cm)": "calfRCm",
+    "weight (kg)": "weightKg", "sleep (hours)": "sleepHours", "water (litres)": "waterLitres",
+    "energy": "energy", "mood": "mood"
+  };
+  const MEASUREMENT_METRIC_DEFINITIONS = {
+    weightKg: {
+      get label() { return `Weight (${WorkoutSettings.weightUnit})`; },
+      get unit() { return WorkoutSettings.weightUnit; },
+      displayValue: value => WorkoutSettings.weightFromKg(value)
+    },
+    sleepHours: { label: "Sleep (hours)", unit: "hours", displayValue: value => value },
+    waterLitres: {
+      get label() { return `Water (${WorkoutSettings.units === "imperial" ? "fl oz" : "L"})`; },
+      get unit() { return WorkoutSettings.units === "imperial" ? "fl oz" : "L"; },
+      displayValue: value => WorkoutSettings.units === "imperial" ? value / 0.0295735295625 : value
+    },
+    energy: {
+      label: "Energy",
+      options: ["spent", "weak", "tired", "fair", "good", "strong"],
+      displayValue: value => value
+    },
+    mood: {
+      label: "Mood",
+      options: ["bad", "poor", "meh", "fair", "good", "great"],
+      displayValue: value => value
+    }
+  };
+  [
+    ["neckCm", "Neck"], ["bicepLCm", "Bicep L"], ["bicepRCm", "Bicep R"],
+    ["forearmLCm", "Forearm L"], ["forearmRCm", "Forearm R"], ["shouldersCm", "Shoulders"],
+    ["chestCm", "Chest"], ["waistCm", "Waist"], ["bellyCm", "Belly"], ["buttCm", "Butt"],
+    ["thighLCm", "Thigh L"], ["thighRCm", "Thigh R"], ["calfLCm", "Calf L"], ["calfRCm", "Calf R"]
+  ].forEach(([fieldName, label]) => {
+    MEASUREMENT_METRIC_DEFINITIONS[fieldName] = {
+      get label() { return `${label} (${WorkoutSettings.units === "imperial" ? "in" : "cm"})`; },
+      get unit() { return WorkoutSettings.units === "imperial" ? "in" : "cm"; },
+      displayValue: value => WorkoutSettings.units === "imperial" ? value / 2.54 : value
+    };
+  });
+  const MEASUREMENT_METRIC_ORDER = [
+    "weightKg", "sleepHours", "waterLitres", "energy", "mood",
+    "neckCm", "shouldersCm", "chestCm", "waistCm", "bellyCm", "buttCm",
+    "bicepLCm", "bicepRCm", "forearmLCm", "forearmRCm", "thighLCm", "thighRCm",
+    "calfLCm", "calfRCm"
+  ];
 
   const $ = selector => document.querySelector(selector);
 
   let rows = [];
   let allRows = [];
+  let measurementRows = [];
+  let allMeasurementRows = [];
+  let measurementLoadError = "";
   let loadedAt = null;
   let loading = false;
 
@@ -113,14 +168,6 @@
   }
 
   // ---------- reading responses ----------
-  function buildQuestionMap(formDefinition) {
-    return WorkoutForms.buildQuestionMap(FORM_CONFIGURATION, formDefinition, FORM_QUESTION_FIELD_NAMES);
-  }
-
-  async function fetchAllResponses(token) {
-    return WorkoutForms.fetchAllResponses(FORM_CONFIGURATION, token);
-  }
-
   function toWorkoutRow(response, questionMap) {
     const row = { submitted: response.lastSubmittedTime || response.createTime };
     Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
@@ -148,6 +195,94 @@
     };
   }
 
+  function toMeasurementRow(response, questionMap) {
+    const row = { submitted: response.lastSubmittedTime || response.createTime };
+    Object.entries(response.answers || {}).forEach(([questionId, answer]) => {
+      const fieldName = questionMap.get(questionId);
+
+      if (fieldName) {
+        row[fieldName] = answer.textAnswers?.answers?.[0]?.value ?? "";
+      }
+    });
+    const parseOptionalNumber = value => {
+      if (value === undefined || value === "") {
+        return null;
+      }
+
+      const parsedValue = Number(value);
+
+      return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : null;
+    };
+    const submitted = row.submitted || "";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(row.date || "") ? row.date : submitted.slice(0, 10);
+    const measurementRow = {
+      email: (row.email || "").trim().toLowerCase(),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
+      submitted
+    };
+
+    Object.keys(MEASUREMENT_METRIC_DEFINITIONS).forEach(fieldName => {
+      if (fieldName === "energy" || fieldName === "mood") {
+        const validStates = MEASUREMENT_METRIC_DEFINITIONS[fieldName].options;
+        measurementRow[fieldName] = validStates.includes(row[fieldName]) ? row[fieldName] : "";
+      } else {
+        measurementRow[fieldName] = parseOptionalNumber(row[fieldName]);
+      }
+    });
+
+    return measurementRow;
+  }
+
+  async function readFormRows(configuration, questionFieldNames, requiredField, transformRow, token) {
+    const form = await fetchGoogleFormsResource(encodeURIComponent(configuration.formId), token);
+    const questionMap = WorkoutForms.buildQuestionMap(configuration, form, questionFieldNames);
+
+    if (!new Set(questionMap.values()).has(requiredField)) {
+      throw new Error(`The form's questions don't match the ${requiredField} tracker fields.`);
+    }
+
+    const responses = await WorkoutForms.fetchAllResponses(configuration, token);
+
+    return responses.map(response => transformRow(response, questionMap));
+  }
+
+  async function fetchFormRows(configuration, questionFieldNames, requiredField, transformRow, token) {
+    try {
+      return {
+        rows: await readFormRows(configuration, questionFieldNames, requiredField, transformRow, token),
+        token
+      };
+    } catch (error) {
+      if (!(error instanceof GOOGLE_FORMS_REQUEST_ERROR) || error.status !== 401) {
+        throw error;
+      }
+
+      const refreshedToken = await getToken(true);
+
+      return {
+        rows: await readFormRows(configuration, questionFieldNames, requiredField, transformRow, refreshedToken),
+        token: refreshedToken
+      };
+    }
+  }
+
+  function latestMeasurementEntries(rowsToDeduplicate) {
+    const latestByUserAndDate = new Map();
+    rowsToDeduplicate.filter(measurementRow => measurementRow.date && Object.keys(MEASUREMENT_METRIC_DEFINITIONS)
+      .some(fieldName => measurementRow[fieldName] !== null && measurementRow[fieldName] !== ""))
+      .forEach(measurementRow => {
+        const key = `${measurementRow.email}|${measurementRow.date}`;
+        const existingRow = latestByUserAndDate.get(key);
+
+        if (!existingRow || measurementRow.submitted >= existingRow.submitted) {
+          latestByUserAndDate.set(key, measurementRow);
+        }
+      });
+
+    return [...latestByUserAndDate.values()].sort((firstRow, secondRow) =>
+      firstRow.date.localeCompare(secondRow.date));
+  }
+
   async function loadData(interactive) {
     if (loading) {
       return;
@@ -166,38 +301,46 @@
     const keepUser = $("#user-select").value;
     rows = [];
     allRows = [];
+    measurementRows = [];
+    allMeasurementRows = [];
+    measurementLoadError = "";
     loadedAt = null;
     $("#results").hidden = true;
     $("#trends-empty").hidden = false;
     $("#user-select").innerHTML = "";
     $("#user-select").disabled = true;
     $("#user-field").hidden = true;
-    setStatus("Loading your workouts…");
+    setStatus("Loading your workouts and measurements…");
 
     try {
       let token = await getToken(false);
-      let form;
-
-      try {
-        form = await fetchGoogleFormsResource(encodeURIComponent(FORM_CONFIGURATION.formId), token);
-      } catch (error) {
-        if (!(error instanceof GOOGLE_FORMS_REQUEST_ERROR) || error.status !== 401) {
-          throw error;
-        }
-
-        token = await getToken(true);
-        form = await fetchGoogleFormsResource(encodeURIComponent(FORM_CONFIGURATION.formId), token);
-      }
-
-      const questionMap = buildQuestionMap(form);
-
-      if (!new Set(questionMap.values()).has("exercise")) {
-        throw new Error("The form's questions don't match the workout tracker fields.");
-      }
-
-      const responses = await fetchAllResponses(token);
-      allRows = responses.map(response => toWorkoutRow(response, questionMap))
+      const workoutResult = await fetchFormRows(
+        FORM_CONFIGURATION, FORM_QUESTION_FIELD_NAMES, "exercise", toWorkoutRow, token
+      );
+      token = workoutResult.token;
+      allRows = workoutResult.rows
         .filter(workoutRow => workoutRow.exercise);
+
+      if (!MEASUREMENTS_FORM_CONFIGURATION.formId) {
+        measurementLoadError = "Measurements form is not configured in fitness/config.js.";
+      } else {
+        try {
+          const measurementResult = await fetchFormRows(
+            MEASUREMENTS_FORM_CONFIGURATION,
+            MEASUREMENT_QUESTION_FIELD_NAMES,
+            "date",
+            toMeasurementRow,
+            token
+          );
+          allMeasurementRows = latestMeasurementEntries(measurementResult.rows);
+        } catch (error) {
+          measurementLoadError = error instanceof GOOGLE_FORMS_REQUEST_ERROR &&
+            (error.status === 403 || error.status === 404)
+            ? "Measurement responses could not be read. Check that your account has edit access to the measurements form."
+            : `Measurement data could not be loaded: ${error.message || String(error)}`;
+        }
+      }
+
       loadedAt = new Date();
       renderUserOptions(keepUser);
       applyUser();
@@ -251,19 +394,33 @@
   function renderUserOptions(previous) {
     const select = $("#user-select");
     const counts = new Map();
-    allRows.forEach(workoutRow => counts.set(workoutRow.email, (counts.get(workoutRow.email) || 0) + 1));
+    allRows.forEach(workoutRow => {
+      const userCounts = counts.get(workoutRow.email) || { sets: 0, measurements: 0 };
+      userCounts.sets += 1;
+      counts.set(workoutRow.email, userCounts);
+    });
+    allMeasurementRows.forEach(measurementRow => {
+      const userCounts = counts.get(measurementRow.email) || { sets: 0, measurements: 0 };
+      userCounts.measurements += 1;
+      counts.set(measurementRow.email, userCounts);
+    });
     const users = [...counts.entries()].sort((firstUser, secondUser) =>
-      secondUser[1] - firstUser[1] || firstUser[0].localeCompare(secondUser[0]));
+      (secondUser[1].sets + secondUser[1].measurements) -
+        (firstUser[1].sets + firstUser[1].measurements) ||
+      firstUser[0].localeCompare(secondUser[0]));
     const signedInEmail = WorkoutAuth.user.email.toLowerCase();
     const formatEmailLabel = email => email || "(no email)";
-    const userOptions = users.map(([email, setCount]) => {
+    const userOptions = users.map(([email, userCounts]) => {
       const emailLabel = escapeMarkup(formatEmailLabel(email));
       const signedInMarker = email === signedInEmail ? " (you)" : "";
+      const countsLabel = `${userCounts.sets} set${userCounts.sets === 1 ? "" : "s"}, ` +
+        `${userCounts.measurements} measurement${userCounts.measurements === 1 ? "" : "s"}`;
 
-      return `<option value="${escapeMarkup(email)}">${emailLabel}${signedInMarker} – ${setCount} set${setCount === 1 ? "" : "s"}</option>`;
+      return `<option value="${escapeMarkup(email)}">${emailLabel}${signedInMarker} – ${countsLabel}</option>`;
     }).join("");
     const allUsersOption = users.length > 1
-      ? `<option value="${ALL_USERS_OPTION_VALUE}">All users – ${allRows.length} sets</option>`
+      ? `<option value="${ALL_USERS_OPTION_VALUE}">All users – ${allRows.length} sets, ` +
+        `${allMeasurementRows.length} measurements</option>`
       : "";
     select.innerHTML = userOptions + allUsersOption;
     const userEmails = users.map(([email]) => email);
@@ -286,13 +443,18 @@
     rows = selected === ALL_USERS_OPTION_VALUE
       ? allRows
       : allRows.filter(workoutRow => workoutRow.email === selected);
+    measurementRows = selected === ALL_USERS_OPTION_VALUE
+      ? allMeasurementRows
+      : allMeasurementRows.filter(measurementRow => measurementRow.email === selected);
     const selectedUserDescription = selected === ALL_USERS_OPTION_VALUE ? "all users" : (selected || "(no email)");
     const loadedTimeDescription = loadedAt
       ? ` Loaded from the form at ${loadedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}.`
       : "";
-    setStatus(allRows.length
-      ? `Showing ${rows.length} set${rows.length === 1 ? "" : "s"} (all time) logged by ${selectedUserDescription}.${loadedTimeDescription}`
-      : `No workouts have been logged in this form yet.${loadedTimeDescription}`, allRows.length ? "ok" : "");
+    const dataDescription = `Showing ${rows.length} set${rows.length === 1 ? "" : "s"} and ` +
+      `${measurementRows.length} measurement entr${measurementRows.length === 1 ? "y" : "ies"} ` +
+      `(all time) for ${selectedUserDescription}.${loadedTimeDescription}`;
+    setStatus(measurementLoadError ? `${dataDescription} ${measurementLoadError}` : dataDescription,
+      measurementLoadError ? "error" : "ok");
     render();
   }
 
@@ -416,6 +578,7 @@
     renderExerciseOptions(list);
     renderExerciseTrend();
     renderExercisesTable(list);
+    renderMeasurementTrend();
   }
 
   function renderSummary(list, sessions) {
@@ -545,6 +708,155 @@
         <td>${formatNumber(session.averagePerceivedExertion)}</td></tr>`).join("")}</tbody>` : "";
   }
 
+  function measurementMetricValue(measurementRow, metricName) {
+    const metricDefinition = MEASUREMENT_METRIC_DEFINITIONS[metricName];
+    const value = measurementRow[metricName];
+
+    if (metricDefinition.options) {
+      const optionIndex = metricDefinition.options.indexOf(value);
+
+      return optionIndex < 0 ? NaN : optionIndex + 1;
+    }
+
+    return Number.isFinite(value) ? metricDefinition.displayValue(value) : NaN;
+  }
+
+  function formatMeasurementValue(measurementRow, metricName) {
+    const metricDefinition = MEASUREMENT_METRIC_DEFINITIONS[metricName];
+    const value = measurementRow[metricName];
+
+    if (metricDefinition.options) {
+      return value || "–";
+    }
+
+    const displayValue = measurementMetricValue(measurementRow, metricName);
+
+    return Number.isFinite(displayValue)
+      ? `${formatNumber(displayValue)} ${metricDefinition.unit}`
+      : "–";
+  }
+
+  function renderMeasurementTrend() {
+    const measurementRowsInRange = inRange(measurementRows);
+    const metricSelect = $("#measurement-metric-select");
+    const previousMetric = metricSelect.value;
+    const availableMetrics = MEASUREMENT_METRIC_ORDER.filter(metricName =>
+      measurementRowsInRange.some(measurementRow =>
+        Number.isFinite(measurementMetricValue(measurementRow, metricName))));
+    metricSelect.innerHTML = availableMetrics.map(metricName =>
+      `<option value="${metricName}">${escapeMarkup(MEASUREMENT_METRIC_DEFINITIONS[metricName].label)}</option>`
+    ).join("");
+
+    if (availableMetrics.includes(previousMetric)) {
+      metricSelect.value = previousMetric;
+    } else {
+      metricSelect.value = ["weightKg", "waistCm", "sleepHours", "waterLitres"]
+        .find(metricName => availableMetrics.includes(metricName)) || availableMetrics[0] || "";
+    }
+
+    const metricName = metricSelect.value;
+    const metricDefinition = MEASUREMENT_METRIC_DEFINITIONS[metricName];
+    const selectedEntries = metricName
+      ? measurementRowsInRange.filter(measurementRow =>
+        Number.isFinite(measurementMetricValue(measurementRow, metricName)))
+      : [];
+    const metricChartDefinition = metricName
+      ? {
+        label: metricDefinition.label,
+        categories: metricDefinition.options,
+        format: value => metricDefinition.options
+          ? metricDefinition.options[Math.max(0, Math.min(metricDefinition.options.length - 1, Math.round(value) - 1))]
+          : formatNumber(value)
+      }
+      : null;
+
+    $("#measurement-trends-status").textContent = measurementLoadError
+      ? measurementLoadError
+      : selectedEntries.length
+        ? "Showing the latest submitted entry for each date."
+        : "No measurement data for the selected period.";
+    $("#measurement-chart").innerHTML = selectedEntries.length
+      ? lineChart(selectedEntries.map(measurementRow => ({
+        date: measurementRow.date,
+        value: measurementMetricValue(measurementRow, metricName)
+      })), metricChartDefinition)
+      : "";
+    $("#measurement-table").innerHTML = selectedEntries.length ? `
+      <thead><tr><th>Date</th><th>${escapeMarkup(metricDefinition.label)}</th></tr></thead>
+      <tbody>${selectedEntries.slice().reverse().map(measurementRow => `<tr>
+        <td>${escapeMarkup(measurementRow.date)}</td>
+        <td>${escapeMarkup(formatMeasurementValue(measurementRow, metricName))}</td>
+      </tr>`).join("")}</tbody>` : "";
+    renderAllMeasurementsTable(measurementRowsInRange);
+  }
+
+  function measurementChangeCell(firstMeasurementRow, latestMeasurementRow, metricName) {
+    const metricDefinition = MEASUREMENT_METRIC_DEFINITIONS[metricName];
+    const firstValue = firstMeasurementRow[metricName];
+    const latestValue = latestMeasurementRow[metricName];
+
+    if (metricDefinition.options) {
+      const difference = metricDefinition.options.indexOf(latestValue) -
+        metricDefinition.options.indexOf(firstValue);
+
+      if (!difference) {
+        return `<span class="muted">–</span>`;
+      }
+
+      return `<span class="${difference > 0 ? "up" : "down"}">` +
+        `${difference > 0 ? "▲" : "▼"} from ${escapeMarkup(firstValue)}</span>`;
+    }
+
+    const difference = measurementMetricValue(latestMeasurementRow, metricName) -
+      measurementMetricValue(firstMeasurementRow, metricName);
+
+    if (!difference) {
+      return `<span class="muted">–</span>`;
+    }
+
+    return `<span class="${difference > 0 ? "up" : "down"}">` +
+      `${difference > 0 ? "▲" : "▼"} ${formatNumber(Math.abs(difference))} ` +
+      `${escapeMarkup(metricDefinition.unit)}</span>`;
+  }
+
+  function renderAllMeasurementsTable(measurementRowsInRange) {
+    const metricSummaries = MEASUREMENT_METRIC_ORDER.map(metricName => {
+      const entries = measurementRowsInRange.filter(measurementRow =>
+        Number.isFinite(measurementMetricValue(measurementRow, metricName)));
+
+      if (!entries.length) {
+        return null;
+      }
+
+      return {
+        metricName,
+        entries,
+        latest: entries[entries.length - 1]
+      };
+    }).filter(Boolean).sort((firstMetric, secondMetric) =>
+      secondMetric.latest.date.localeCompare(firstMetric.latest.date) ||
+      MEASUREMENT_METRIC_ORDER.indexOf(firstMetric.metricName) -
+        MEASUREMENT_METRIC_ORDER.indexOf(secondMetric.metricName));
+
+    $("#all-measurements-table").innerHTML = metricSummaries.length ? `
+      <thead><tr><th>Measurement</th><th>Entries</th><th>Last measured</th>
+        <th>Latest</th><th>Change</th></tr></thead>
+      <tbody>${metricSummaries.map(metricSummary => {
+        const { metricName, entries, latest } = metricSummary;
+        const earliest = entries[0];
+        const metricDefinition = MEASUREMENT_METRIC_DEFINITIONS[metricName];
+
+        return `<tr>
+          <td><a href="#" class="measurement-link" data-metric="${metricName}">${escapeMarkup(metricDefinition.label)}</a></td>
+          <td>${entries.length}</td>
+          <td>${escapeMarkup(latest.date)}</td>
+          <td>${escapeMarkup(formatMeasurementValue(latest, metricName))}</td>
+          <td>${entries.length > 1 ? measurementChangeCell(earliest, latest, metricName) : `<span class="muted">–</span>`}</td>
+        </tr>`;
+      }).join("")}</tbody>` : `
+      <tbody><tr><td class="muted" colspan="5">No measurements in this period.</td></tr></tbody>`;
+  }
+
   function renderExercisesTable(list) {
     const exerciseSummaries = [...groupBy(list, workoutRow => workoutRow.exercise).keys()].map(exerciseName => {
       const sessions = exerciseSessions(list, exerciseName);
@@ -615,14 +927,17 @@
     const earliestDateValue = Math.min(...dateValues);
     const latestDateValue = Math.max(...dateValues);
     const metricValues = points.map(point => point.value);
-    let minimumMetricValue = Math.min(0, ...metricValues);
-    let maximumMetricValue = Math.max(...metricValues);
+    const categories = metricDefinition.categories;
+    let minimumMetricValue = categories ? 0.5 : Math.min(0, ...metricValues);
+    let maximumMetricValue = categories ? categories.length + 0.5 : Math.max(...metricValues);
 
-    if (maximumMetricValue === minimumMetricValue) {
+    if (!categories && maximumMetricValue === minimumMetricValue) {
       maximumMetricValue = minimumMetricValue + 1;
     }
 
-    maximumMetricValue += (maximumMetricValue - minimumMetricValue) * 0.1;
+    if (!categories) {
+      maximumMetricValue += (maximumMetricValue - minimumMetricValue) * 0.1;
+    }
     const getHorizontalPosition = dateValue => chartPadding.left +
       (latestDateValue === earliestDateValue
         ? (chartWidth - chartPadding.left - chartPadding.right) / 2
@@ -631,9 +946,11 @@
     const getVerticalPosition = metricValue => chartHeight - chartPadding.bottom -
       ((metricValue - minimumMetricValue) / (maximumMetricValue - minimumMetricValue)) *
         (chartHeight - chartPadding.top - chartPadding.bottom);
-    const tickCount = 4;
-    const gridLines = Array.from({ length: tickCount + 1 }, (_, tickIndex) => {
-      const metricValue = minimumMetricValue + ((maximumMetricValue - minimumMetricValue) * tickIndex) / tickCount;
+    const metricGridValues = categories
+      ? Array.from({ length: categories.length }, (_, categoryIndex) => categoryIndex + 1)
+      : Array.from({ length: 5 }, (_, tickIndex) =>
+        minimumMetricValue + ((maximumMetricValue - minimumMetricValue) * tickIndex) / 4);
+    const gridLines = metricGridValues.map(metricValue => {
       const verticalPosition = getVerticalPosition(metricValue);
       const formattedMetricValue = escapeMarkup(metricDefinition.format(metricValue));
 
@@ -687,6 +1004,47 @@
   }
 
   // ---------- boot ----------
+  function initializeSectionStates() {
+    const showStorageError = (message, error) => {
+      console.error(message, error);
+      $("#section-state-status").textContent = message;
+      $("#section-state-status").hidden = false;
+    };
+
+    document.querySelectorAll(".trend-section").forEach(section => {
+      const storageKey = `workout.trends.section.${section.id}`;
+
+      try {
+        const savedState = localStorage.getItem(storageKey);
+
+        if (savedState !== null && savedState !== "true" && savedState !== "false") {
+          throw new Error(`Invalid saved state for ${section.id}.`);
+        }
+
+        if (savedState !== null) {
+          section.open = savedState === "true";
+        }
+      } catch (error) {
+        showStorageError("Saved section states could not be read. Sections can still be expanded or collapsed.", error);
+      }
+
+      let previousState = section.open;
+      section.addEventListener("toggle", () => {
+        if (section.open === previousState) {
+          return;
+        }
+
+        previousState = section.open;
+
+        try {
+          localStorage.setItem(storageKey, String(section.open));
+        } catch (error) {
+          showStorageError("Section state changed, but could not be saved on this device.", error);
+        }
+      });
+    });
+  }
+
   function onSignIn() {
     $("#trends-view").hidden = false;
 
@@ -706,6 +1064,9 @@
     sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
     rows = [];
     allRows = [];
+    measurementRows = [];
+    allMeasurementRows = [];
+    measurementLoadError = "";
     $("#user-select").innerHTML = "";
     $("#user-select").disabled = true;
     $("#user-field").hidden = true;
@@ -717,10 +1078,15 @@
   }
 
   $("#load-data").addEventListener("click", () => loadData(true));
-  $("#range").addEventListener("change", () => allRows.length && render());
+  $("#range").addEventListener("change", () => {
+    if (allRows.length || allMeasurementRows.length) {
+      render();
+    }
+  });
   $("#user-select").addEventListener("change", applyUser);
   $("#exercise-select").addEventListener("change", renderExerciseTrend);
   $("#metric-select").addEventListener("change", renderExerciseTrend);
+  $("#measurement-metric-select").addEventListener("change", renderMeasurementTrend);
   document.addEventListener("workout:unitschange", () => {
     if (!$("#results").hidden) {
       render();
@@ -736,8 +1102,23 @@
     event.preventDefault();
     $("#exercise-select").value = link.dataset.name;
     renderExerciseTrend();
+    $("#exercise-trend-section").open = true;
     $("#chart").scrollIntoView({ behavior: "smooth", block: "center" });
   });
+  $("#all-measurements-table").addEventListener("click", event => {
+    const link = event.target.closest(".measurement-link");
 
+    if (!link) {
+      return;
+    }
+
+    event.preventDefault();
+    $("#measurement-metric-select").value = link.dataset.metric;
+    renderMeasurementTrend();
+    $("#measurement-trend-section").open = true;
+    $("#measurement-chart").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  initializeSectionStates();
   WorkoutAuth.init({ onSignIn, onSignOut });
 })();
