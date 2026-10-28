@@ -95,7 +95,7 @@ function createEnvironment(options = {}) {
       return { type: "opaque" };
     }
   };
-  for (const filename of ["google-forms.js", "submission-status.js", "measurements.js"]) {
+  for (const filename of ["google-forms.js", "submission-status.js", "track.js"]) {
     runInNewContext(readFileSync(path.join(__dirname, "..", filename), "utf8"), context);
   }
   events.DOMContentLoaded();
@@ -161,7 +161,7 @@ test("sends one complete metric response through the shared Forms helper", async
   assert.equal(request.body.get(CONFIGURATION.fields.date), "2026-10-27");
   assert.ok(request.body.get(CONFIGURATION.fields.measurementId));
   assert.equal(environment.records()[0].pendingSubmissions.length, 0);
-  assert.match(environment.element("measurement-status").textContent, /does not confirm storage/);
+  assert.match(environment.element("measurement-status").textContent, /Measurement submission sent/);
 });
 
 test("converts imperial input to canonical form units and preserves zero and optional blanks", async () => {
@@ -289,7 +289,7 @@ test("retains failures across reload and retries on sign-in using the same measu
   await environment.submit();
   const queued = environment.records()[0].pendingSubmissions[0];
   assert.equal(environment.element("measurement-queue").hidden, false);
-  assert.match(environment.element("measurement-status").textContent, /remain queued/);
+  assert.match(environment.element("measurement-status").textContent, /submission is saved on this device/);
   const restored = createEnvironment({ storage: environment.storage });
   restored.signIn();
   await settle();
@@ -441,7 +441,7 @@ test("a storage failure after sending retains the response for an explicit retry
   releaseRequest();
   await submission;
   assert.equal(environment.records()[0].pendingSubmissions.length, 1);
-  assert.match(environment.element("measurement-status").textContent, /remain queued/);
+  assert.match(environment.element("measurement-status").textContent, /submission is saved on this device/);
   environment.controls.failWrite = false;
   await environment.retry();
   assert.equal(environment.records()[0].pendingSubmissions.length, 0);

@@ -66,7 +66,7 @@
     const box = $("#setup-warning");
 
     if (problems.length) {
-      box.innerHTML = "<strong>Setup required</strong> (edit <code>workouts/config.js</code>):<ul>" +
+      box.innerHTML = "<strong>Setup required</strong> (edit <code>fitness/config.js</code>):<ul>" +
         problems.map(problem => `<li>${problem}</li>`).join("") + "</ul>";
       box.hidden = false;
     }

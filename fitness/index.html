@@ -21,9 +21,11 @@
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
     <h1>Workout log</h1>
-    <nav class="nav" aria-label="Fitness pages"><a href="./" aria-current="page">Log</a><a href="trends.html">Trends</a><a href="measurements.html">Measurements</a></nav>
+    <nav class="nav" aria-label="Fitness pages"><a href="./" aria-current="page">Log</a><a href="track.html">Track</a><a
+        href="trends.html">Trends</a></nav>
     <details id="settings-menu" class="settings-menu">
-      <summary class="btn ghost small" title="Settings"><span class="settings-icon" aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
+      <summary class="btn ghost small" title="Settings"><span class="settings-icon"
+          aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
       <div class="settings-panel card">
         <h2>Settings</h2>
         <label class="field" for="theme-select">Theme
@@ -52,7 +54,8 @@
             <option value="time">Time</option>
           </select>
         </label>
-        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved configurations keep their measure.</p>
+        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved
+          configurations keep their measure.</p>
         <p class="muted">Settings are remembered on this device across Log, Trends, and Measurements.</p>
         <p id="settings-status" class="status" role="status" aria-live="polite"></p>
       </div>
@@ -86,7 +89,8 @@
               <select id="routine-select" hidden></select>
               <span id="routine-capture" class="routine-capture">
                 <input id="routine-name" placeholder="e.g. Upper body A" autocomplete="off">
-                <button type="button" id="clear-routine-name" class="icon-btn" aria-label="Clear routine name" title="Clear routine name">&times;</button>
+                <button type="button" id="clear-routine-name" class="icon-btn" aria-label="Clear routine name"
+                  title="Clear routine name">&times;</button>
               </span>
             </span>
             <button type="button" id="choose-saved-routine" class="btn link" hidden>Choose a saved routine</button>

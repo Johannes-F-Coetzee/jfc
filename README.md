@@ -5,13 +5,13 @@ Static GitHub Pages site.
 | Page | Path |
 |------|------|
 | Home | [`index.html`](index.html) |
-| Fitness tracker | [`workouts/`](workouts/) |
-| Fitness trends | [`workouts/trends.html`](workouts/trends.html) |
-| Fitness Measurements | [`workouts/measurements.html`](workouts/measurements.html) |
+| Fitness tracker | [`fitness/`](fitness/) |
+| Fitness trends | [`fitness/trends.html`](fitness/trends.html) |
+| Fitness tracking | [`fitness/track.html`](fitness/track.html) |
 
 ## Fitness tracker
 
-`workouts/` is a mobile-friendly page for logging an exercise routine:
+`fitness/` is a mobile-friendly page for logging an exercise routine:
 
 - **Google sign-in** (Google Identity Services). An optional email allow-list restricts access.
 - Per exercise you choose **Reps** or **Time**, then log each set. Each set records reps or duration (with a built-in stopwatch), optional weight, **difficulty (RPE 1–10)** from a dropdown, and optional notes (tap **+ Note** to add one). **Clear workout** sits below Submit and can be reversed with **Undo** until you edit the workout again; on phones, Submit and the time estimate stay pinned to the bottom of the screen.
@@ -27,7 +27,7 @@ Static GitHub Pages site.
 
 ### Trends page
 
-[`workouts/trends.html`](workouts/trends.html) reads the form's responses through the **Google Forms API**, using the signed-in Google account. A **User** dropdown lists every email that has logged sets (with set counts) plus *All users*. It defaults to the signed-in account when that account has data, otherwise to the user with the most sets. For the selected user the page shows:
+[`fitness/trends.html`](fitness/trends.html) reads the form's responses through the **Google Forms API**, using the signed-in Google account. A **User** dropdown lists every email that has logged sets (with set counts) plus *All users*. It defaults to the signed-in account when that account has data, otherwise to the user with the most sets. For the selected user the page shows:
 
 - summary totals for the selected period (30 days, 90 days, 12 months or all time)
 - a per-routine table: workouts, average sets, average estimated time, and difficulty change
@@ -36,9 +36,9 @@ Static GitHub Pages site.
 
 Reading responses requires **edit access to the form**. Trends tries to load automatically on sign-in; if Google needs to show its permission window, press **Load my data**. The User filter appears only when the form has data from more than one person. **Load my data** can also re-read the form and all responses from Google (bypassing the browser cache), discarding previously loaded results. The status line shows when the data was loaded. When the signed-in account can't read it (or `form.formId` isn't set), the page shows step-by-step instructions for forking this repository and setting up a personal copy.
 
-### Measurements page
+### Track page
 
-[`workouts/measurements.html`](workouts/measurements.html) sends body measurements, weight, sleep, water, energy, and mood to a separate **Google Form**, with one response per submission. Body measurements use centimetres or inches and weight uses kilograms or pounds according to Settings; sleep is in hours and water is in litres or US fluid ounces. Responses always store centimetres (`neckCm`, `bicepLCm`, etc.), kilograms (`weightKg`), hours (`sleepHours`), and litres (`waterLitres`), plus `email`, `measurementId`, `date`, `energy`, and `mood`. The page groups fields into Body, Daily state, and Circumference, in that order. Energy and mood are dropdowns with the same options as the page.
+[`fitness/track.html`](fitness/track.html) sends body measurements, weight, sleep, water, energy, and mood to a separate **Google Form**, with one response per submission. Body measurements use centimetres or inches and weight uses kilograms or pounds according to Settings; sleep is in hours and water is in litres or US fluid ounces. Responses always store centimetres (`neckCm`, `bicepLCm`, etc.), kilograms (`weightKg`), hours (`sleepHours`), and litres (`waterLitres`), plus `email`, `measurementId`, `date`, `energy`, and `mood`. The page groups fields into Body, Daily state, and Circumference, in that order. Energy and mood are dropdowns with the same options as the page.
 
 **Submit measurements** uses the same full-width submit row as the Log page, staying pinned to the bottom of the screen on phones. **Clear fields** and submission status appear below it. **Undo** restores cleared fields and their date until you edit the form, submit, load a history entry, or change accounts. Clearing fields does not delete history or queued submissions.
 
@@ -46,42 +46,42 @@ The latest entry per date and all pending submissions are stored together on thi
 
 **Edit** fills the form from local history; submitting it appends a new Google Form response, rather than editing or replacing any earlier response. The local daily history updates to the latest submitted values. Previous device-only entries are preserved but are not automatically uploaded; use **Edit** and **Submit measurements** to send them. The page does not load history from Google or synchronize history across devices.
 
-To configure measurements, run **`createMeasurementsForm`** from [`workouts/setup/create-form.gs`](workouts/setup/create-form.gs) in Google Apps Script, grant access, and copy its logged **`measurementsForm: {...}`** block into [`workouts/config.js`](workouts/config.js), replacing the empty measurements block only. This creates a separate form and linked response spreadsheet. Publish it, allow anonymous responses, disable automatic email collection and one-response limits, and leave measurement questions optional so partial entries can be submitted. No additional OAuth scopes or form-edit permission are needed to submit measurements. All entry mappings are required; missing or duplicate mappings disable submission and show setup instructions.
+To configure measurements, run **`createMeasurementsForm`** from [`fitness/setup/create-form.gs`](fitness/setup/create-form.gs) in Google Apps Script, grant access, and copy its logged **`measurementsForm: {...}`** block into [`fitness/config.js`](fitness/config.js), replacing the empty measurements block only. This creates a separate form and linked response spreadsheet. Publish it, allow anonymous responses, disable automatic email collection and one-response limits, and leave measurement questions optional so partial entries can be submitted. No additional OAuth scopes or form-edit permission are needed to submit measurements. All entry mappings are required; missing or duplicate mappings disable submission and show setup instructions.
 
 ### Fitness tracker setup
 
 1. **Create the Google Form**
-   - Open <https://script.google.com>, create a new project, and paste in [`workouts/setup/create-form.gs`](workouts/setup/create-form.gs).
+   - Open <https://script.google.com>, create a new project, and paste in [`fitness/setup/create-form.gs`](fitness/setup/create-form.gs).
    - Run `createWorkoutForm` and grant access. This creates the form plus a linked response spreadsheet.
-   - Copy the logged `form: {...}` block into [`workouts/config.js`](workouts/config.js).
+   - Copy the logged `form: {...}` block into [`fitness/config.js`](fitness/config.js).
    - Prefer to build the form by hand? Add one *Short answer* question per field listed in `config.js`. Then open **⋮ → Get pre-filled link**, fill in each field, and copy the `entry.NNN` IDs from the generated URL. The action URL is the form's `/viewform` URL with `viewform` replaced by `formResponse`.
    - The form must be **published**, must **not** require sign-in, and must **not** collect email addresses or limit responses to one per person. Otherwise the anonymous POST from the site is rejected.
 
 2. **Create the shared configuration Google Form**
-   - In the same Apps Script project, run `createWorkoutConfigurationForm` from [`workouts/setup/create-form.gs`](workouts/setup/create-form.gs).
-   - Copy its logged `configurationForm: {...}` block into [`workouts/config.js`](workouts/config.js). This is a separate form from the workout log; do not replace the existing `form` block.
+   - In the same Apps Script project, run `createWorkoutConfigurationForm` from [`fitness/setup/create-form.gs`](fitness/setup/create-form.gs).
+   - Copy its logged `configurationForm: {...}` block into [`fitness/config.js`](fitness/config.js). This is a separate form from the workout log; do not replace the existing `form` block.
    - Apply the same publishing/anonymous-response settings as the logging form.
    - Share the configuration form with **every tracker user as an editor**. As with trends, the Forms API requires edit access to read responses. The site reads every user's configurations, with no author filter. Form editors can modify data directly in Google Forms, even though the site provides no edit/delete controls.
 
 3. **Create the Google OAuth client ID**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), configure the OAuth consent screen, then go to **Create credentials → OAuth client ID → Web application**.
    - Under *Authorized JavaScript origins*, add `https://johannes-f-coetzee.github.io` (and both `http://localhost` and `http://localhost:8000` for local testing).
-   - Put the client ID in `googleClientId` in [`workouts/config.js`](workouts/config.js).
+   - Put the client ID in `googleClientId` in [`fitness/config.js`](fitness/config.js).
    - Optionally, list permitted accounts in `allowedEmails`.
 
 4. **Enable configuration loading and the trends page**
-   - Set `form.formId` in [`workouts/config.js`](workouts/config.js). This is the ID in the form **editor** URL (`docs.google.com/forms/d/<formId>/edit`), not the `/d/e/...` published ID. `create-form.gs` logs it for you.
+   - Set `form.formId` in [`fitness/config.js`](fitness/config.js). This is the ID in the form **editor** URL (`docs.google.com/forms/d/<formId>/edit`), not the `/d/e/...` published ID. `create-form.gs` logs it for you.
    - In Cloud Console, enable the **Google Forms API** (*APIs & Services → Library*).
    - On the OAuth consent screen, add the scopes `https://www.googleapis.com/auth/forms.body.readonly` and `https://www.googleapis.com/auth/forms.responses.readonly`. While the app is in *Testing*, also add each user as a *test user*.
    - These scopes are required for shared configuration loading/saving too. The first time, choose **Routine actions → Refresh routines** on the tracker or **Load my data** on Trends to grant consent; afterward, data loads automatically on sign-in while the permission token is valid.
 
-5. **Publish**: commit and push, and make sure GitHub Pages is enabled for the branch under *Settings → Pages*. The tracker is served at `https://johannes-f-coetzee.github.io/jfc.github.io/workouts/`.
+5. **Publish**: commit and push, and make sure GitHub Pages is enabled for the branch under *Settings → Pages*. The tracker is served at `https://johannes-f-coetzee.github.io/jfc.github.io/fitness/`.
 
-Local testing: `python -m http.server 8000`, then open <http://localhost:8000/workouts/>. Use an HTTP origin authorized for the OAuth client rather than opening the page directly with `file://`.
+Local testing: `python -m http.server 8000`, then open <http://localhost:8000/fitness/>. Use an HTTP origin authorized for the OAuth client rather than opening the page directly with `file://`.
 
-Configuration regression tests (Node.js): `node --test workouts/tests/routines.test.cjs`.
-Theme/settings regression tests (Node.js): `node --test workouts/tests/settings.test.cjs`.
-Measurements regression tests (Node.js): `node --test workouts/tests/measurements.test.cjs`.
+Configuration regression tests (Node.js): `node --test fitness/tests/routines.test.cjs`.
+Theme/settings regression tests (Node.js): `node --test fitness/tests/settings.test.cjs`.
+Track page regression tests (Node.js): `node --test fitness/tests/track.test.cjs`.
 
 ### Configuration saves and recovery
 

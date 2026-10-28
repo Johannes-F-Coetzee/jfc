@@ -19,9 +19,11 @@
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
     <h1>Trends</h1>
-    <nav class="nav" aria-label="Fitness pages"><a href="./">Log</a><a href="trends.html" aria-current="page">Trends</a><a href="measurements.html">Measurements</a></nav>
+    <nav class="nav" aria-label="Fitness pages"><a href="./">Log</a><a href="track.html">Track</a><a href="trends.html"
+        aria-current="page">Trends</a></nav>
     <details id="settings-menu" class="settings-menu">
-      <summary class="btn ghost small" title="Settings"><span class="settings-icon" aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
+      <summary class="btn ghost small" title="Settings"><span class="settings-icon"
+          aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
       <div class="settings-panel card">
         <h2>Settings</h2>
         <label class="field" for="theme-select">Theme
@@ -50,7 +52,8 @@
             <option value="time">Time</option>
           </select>
         </label>
-        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved configurations keep their measure.</p>
+        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved
+          configurations keep their measure.</p>
         <p class="muted">Settings are remembered on this device across Log, Trends, and Measurements.</p>
         <p id="settings-status" class="status" role="status" aria-live="polite"></p>
       </div>
@@ -101,15 +104,16 @@
           <li><strong>Turn on GitHub Pages.</strong> In your fork, open <em>Settings &rarr; Pages</em> and choose
             <em>Deploy from a branch</em> with the <code>main</code> branch and <code>/ (root)</code> folder. Your site
             will be at
-            <code>https://&lt;your-user&gt;.github.io/&lt;repo-name&gt;/workouts/</code>.
+            <code>https://&lt;your-user&gt;.github.io/&lt;repo-name&gt;/fitness/</code>.
           </li>
           <li><strong>Create your Google Forms.</strong> At <a href="https://script.google.com" target="_blank"
               rel="noopener">script.google.com</a>,
-            create a project, paste in <code>workouts/setup/create-form.gs</code> and run
+            create a project, paste in <code>fitness/setup/create-form.gs</code> and run
             <code>createWorkoutForm</code> and <code>createWorkoutConfigurationForm</code>.
             Each creates a separate form and response spreadsheet, then prints a <code>form: {...}</code> or
             <code>configurationForm: {...}</code> block. Publish both forms and allow anonymous responses.
-            Share edit access to the configuration form with every tracker user so they can load shared workouts.</li>
+            Share edit access to the configuration form with every tracker user so they can load shared workouts.
+          </li>
           <li><strong>Create a Google Cloud project.</strong> In the <a href="https://console.cloud.google.com/"
               target="_blank" rel="noopener">Google Cloud Console</a>:
             <ul>
@@ -123,7 +127,7 @@
               </li>
             </ul>
           </li>
-          <li><strong>Update <code>workouts/config.js</code>.</strong> Set <code>googleClientId</code> to your client
+          <li><strong>Update <code>fitness/config.js</code>.</strong> Set <code>googleClientId</code> to your client
             ID, replace the
             <code>form</code> and <code>configurationForm</code> blocks with those printed in step 3,
             and optionally set <code>allowedEmails</code>.
@@ -131,7 +135,8 @@
           <li><strong>Save your routines.</strong> On the Log page, enter exercises and sets under a unique
             routine name and choose <em>Routine actions &rarr; Save as routine</em>. Shared routines saved by all users
             load automatically; <em>Routine actions &rarr; Refresh routines</em> reloads them, and
-            <em>Export routines (JSON)</em> downloads them as a backup; no routines file needs to be committed.</li>
+            <em>Export routines (JSON)</em> downloads them as a backup; no routines file needs to be committed.
+          </li>
           <li><strong>Commit and push.</strong> After GitHub Pages redeploys, sign in on your own site to log workouts
             and view your trends.</li>
         </ol>
@@ -143,7 +148,8 @@
         <p class="muted">Once your workouts load, you'll see:</p>
         <ul class="empty-preview">
           <li><strong>Summary</strong> - workouts, sets, reps, training time and average difficulty</li>
-          <li><strong>Routines</strong> - how often you did each routine, when you last did it, and difficulty change</li>
+          <li><strong>Routines</strong> - how often you did each routine, when you last did it, and difficulty change
+          </li>
           <li><strong>Exercise trend</strong> - a chart of one exercise over time</li>
           <li><strong>All exercises</strong> - a table of every exercise in the period</li>
         </ul>

@@ -48,6 +48,11 @@ function createEnvironment(initialRows = [], options = {}) {
       setItem: (key, value) => storage.set(key, value),
       removeItem: key => storage.delete(key)
     },
+    sessionStorage: {
+      getItem: () => null,
+      setItem() {},
+      removeItem() {}
+    },
     WorkoutAuth: {
       user: { email: "current@example.com" },
       requestAccessToken: async () => "test-access-token"

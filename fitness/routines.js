@@ -51,7 +51,7 @@
     }
 
     if (!isConfigured()) {
-      throw new Error("Set up configurationForm in workouts/config.js using createWorkoutConfigurationForm.");
+      throw new Error("Set up configurationForm in fitness/config.js using createWorkoutConfigurationForm.");
     }
 
     try {

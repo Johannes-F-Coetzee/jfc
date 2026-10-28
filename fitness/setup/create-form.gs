@@ -5,7 +5,7 @@
  *   1. Open https://script.google.com, create a new project and paste this file.
  *   2. Run `createWorkoutForm` for logs and `createWorkoutConfigurationForm` for shared configurations.
  *      Run `createMeasurementsForm` for measurements and daily states.
- *   3. Copy the printed configuration blocks into workouts/config.js.
+ *   3. Copy the printed configuration blocks into fitness/config.js.
  */
 
 const CREATE_RESPONSE_SHEET = true;
@@ -124,5 +124,5 @@ function createTrackerForm(title, configurationKey, fieldDefinitions,
   const actionUrl = form.getPublishedUrl().replace(/\/viewform.*$/, "/formResponse");
   const snippet = configurationKey + ": " + JSON.stringify({ formId: form.getId(), actionUrl: actionUrl, fields: fields }, null, 2);
   Logger.log("Form editor: " + form.getEditUrl());
-  Logger.log("Paste into workouts/config.js:\n" + snippet);
+  Logger.log("Paste into fitness/config.js:\n" + snippet);
 }

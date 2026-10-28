@@ -543,8 +543,15 @@
 
     renderHistory();
     updateQueue();
+    const ownerKey = storageKey;
     showStatus(SUBMISSION_STATUS.submitting("measurement"));
-    await retryQueue();
+    const sent = await flushQueue();
+
+    if (storageKey !== ownerKey) {
+      return;
+    }
+
+    showStatus(sent ? SUBMISSION_STATUS.sent("measurement") : SUBMISSION_STATUS.queued("measurement"), !sent);
   }
 
   function changeUnits(event) {

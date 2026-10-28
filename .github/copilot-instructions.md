@@ -3,8 +3,8 @@
 ## Project structure
 
 - This is a static GitHub Pages site. Keep it dependency-free and use browser-native HTML, CSS, and JavaScript unless a task requires otherwise.
-- Workout tracker pages and their shared assets live in `workouts/`. Read `README.md` for setup, data formats, and publishing details.
-- Keep configuration and workout data in their existing files (`workouts/config.js` and `workouts/routines.json`); never commit credentials or tokens.
+- Workout tracker pages and their shared assets live in `fitness/`. Read `README.md` for setup, data formats, and publishing details.
+- Keep configuration and workout data in their existing files (`fitness/config.js` and `fitness/routines.json`); never commit credentials or tokens.
 
 ## Code style
 
@@ -16,7 +16,7 @@
 - Separate logical blocks with blank lines, but avoid adding blank lines between every statement.
 - Always separate return statements from logical blocks with blank lines.
 - Keep functions small and focused, and prefer early returns to reduce nesting.
-- Preserve the existing HTML conventions: lowercase semantic elements, two-space indentation, and double-quoted attributes. Use kebab-case for CSS classes and custom properties; reuse shared styles in `workouts/styles.css`.
+- Preserve the existing HTML conventions: lowercase semantic elements, two-space indentation, and double-quoted attributes. Use kebab-case for CSS classes and custom properties; reuse shared styles in `fitness/styles.css`.
 - Reuse nearby helpers and patterns. Use `textContent` for plain text; escape dynamic values when building HTML strings.
 
 ## Behavior and validation

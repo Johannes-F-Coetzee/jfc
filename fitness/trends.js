@@ -154,7 +154,7 @@
     }
 
     if (!FORM_CONFIGURATION.formId) {
-      showForkHelp("This site has no form ID configured for trends (form.formId in workouts/config.js).");
+      showForkHelp("This site has no form ID configured for trends (form.formId in fitness/config.js).");
 
       return;
     }
@@ -691,7 +691,7 @@
     $("#trends-view").hidden = false;
 
     if (!FORM_CONFIGURATION.formId) {
-      showForkHelp("This site has no form ID configured for trends (form.formId in workouts/config.js).");
+      showForkHelp("This site has no form ID configured for trends (form.formId in fitness/config.js).");
       $("#load-data").disabled = true;
 
       return;

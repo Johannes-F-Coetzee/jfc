@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fitness Measurements</title>
+  <title>Fitness Track</title>
   <link rel="icon" href="excersise_favicon.svg" type="image/svg+xml">
   <script src="settings.js"></script>
   <link rel="stylesheet" href="styles.css">
@@ -12,17 +12,19 @@
   <script src="auth.js" defer></script>
   <script src="google-forms.js" defer></script>
   <script src="submission-status.js" defer></script>
-  <script src="measurements.js" defer></script>
+  <script src="track.js" defer></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
   <header class="topbar">
     <a class="brand" href="../">&larr; Home</a>
-    <h1>Measurements</h1>
-    <nav class="nav" aria-label="Fitness pages"><a href="./">Log</a><a href="trends.html">Trends</a><a href="measurements.html" aria-current="page">Measurements</a></nav>
+    <h1>Track</h1>
+    <nav class="nav" aria-label="Fitness pages"><a href="./">Log</a><a href="track.html" aria-current="page">Track</a><a
+        href="trends.html">Trends</a></nav>
     <details id="settings-menu" class="settings-menu">
-      <summary class="btn ghost small" title="Settings"><span class="settings-icon" aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
+      <summary class="btn ghost small" title="Settings"><span class="settings-icon"
+          aria-hidden="true">&#9881;</span><span class="settings-text">Settings</span></summary>
       <div class="settings-panel card">
         <h2>Settings</h2>
         <label class="field" for="theme-select">Theme
@@ -51,7 +53,8 @@
             <option value="time">Time</option>
           </select>
         </label>
-        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved configurations keep their measure.</p>
+        <p id="default-measure-help" class="muted">Used for new exercises only. Existing exercises and saved
+          configurations keep their measure.</p>
         <p class="muted">Settings are remembered on this device across tracker pages.</p>
         <p id="settings-status" class="status" role="status" aria-live="polite"></p>
       </div>
@@ -66,8 +69,8 @@
   <main>
     <section id="setup-warning" class="card warning" hidden>
       <strong>Measurements form setup required</strong>
-      <p>Run <code>createMeasurementsForm</code> in <code>workouts/setup/create-form.gs</code>,
-        then paste the logged <code>measurementsForm</code> block into <code>workouts/config.js</code>.
+      <p>Run <code>createMeasurementsForm</code> in <code>fitness/setup/create-form.gs</code>,
+        then paste the logged <code>measurementsForm</code> block into <code>fitness/config.js</code>.
         Publish the form and allow anonymous responses. All field mappings are required before submitting.</p>
     </section>
     <section id="login-view" class="card center">
