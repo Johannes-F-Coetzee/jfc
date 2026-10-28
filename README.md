@@ -86,6 +86,7 @@ Local testing: `python -m http.server 8000`, then open <http://localhost:8000/fi
 Configuration regression tests (Node.js): `node --test fitness/tests/routines.test.cjs`.
 Theme/settings regression tests (Node.js): `node --test fitness/tests/settings.test.cjs`.
 Track page regression tests (Node.js): `node --test fitness/tests/track.test.cjs`.
+All fitness regression tests (Node.js): `node --test fitness/tests`.
 
 ### Configuration saves and recovery
 

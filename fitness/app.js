@@ -4,6 +4,8 @@
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
   const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
+  const WORKOUT_UTILITIES = window.WorkoutUtilities;
+  const escapeMarkup = WORKOUT_UTILITIES.escapeHtml;
   const STORAGE_KEYS = {
     draft: "workout.draft",
     queue: "workout.queue",
@@ -139,12 +141,6 @@
   }
 
   // ---------- workout DOM ----------
-  function todayIso() {
-    const date = new Date();
-
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  }
-
   function fillPerceivedExertionOptions(select) {
     select.replaceChildren(...Object.entries(PERCEIVED_EXERTION_LABELS).map(([value, label]) => {
       const option = document.createElement("option");
@@ -282,7 +278,7 @@
 
   function renderWorkout(workout) {
     $$(".set").forEach(stopTimer);
-    $("#workout-date").value = workout.date || todayIso();
+    $("#workout-date").value = workout.date || WORKOUT_UTILITIES.getLocalDateString();
     $("#routine-name").value = workout.routine || "";
     routineCaptureRequested = false;
     refreshRoutineList();
@@ -490,11 +486,6 @@
     $$("#exercises .ex-name").forEach(input => input.value.trim() && names.add(input.value.trim()));
     $("#exercise-names").innerHTML = [...names].sort()
       .map(exerciseName => `<option value="${escapeMarkup(exerciseName)}"></option>`).join("");
-  }
-
-  function escapeMarkup(text) {
-    return String(text).replace(/[&<>"']/g, character =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   }
 
   // ---------- status ----------

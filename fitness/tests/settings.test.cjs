@@ -203,7 +203,12 @@ test("Escape closes settings and restores focus; outside clicks dismiss it", () 
 test("all pages load settings before styles and offer all six themes", () => {
   for (const filename of ["index.html", "trends.html", "track.html"]) {
     const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
+    const pageScript = filename === "index.html" ? "app.js" : filename.replace(".html", ".js");
+    const utilitiesScriptIndex = html.indexOf('<script src="utilities.js" defer></script>');
+
     assert.ok(html.indexOf('src="settings.js"') < html.indexOf('href="styles.css"'));
+    assert.notEqual(utilitiesScriptIndex, -1, `${filename}: shared utilities`);
+    assert.ok(utilitiesScriptIndex < html.indexOf(`<script src="${pageScript}" defer></script>`));
     assert.match(html, /<link rel="icon" href="excersise_favicon\.svg" type="image\/svg\+xml">/);
     assert.match(html, /<details id="settings-menu"/);
     assert.match(html, /<select id="units-select">/);

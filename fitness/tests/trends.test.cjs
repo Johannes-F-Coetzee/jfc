@@ -5,6 +5,7 @@ const { test } = require("node:test");
 const { runInNewContext } = require("node:vm");
 
 const source = readFileSync(path.join(__dirname, "..", "trends.js"), "utf8");
+const utilitiesSource = readFileSync(path.join(__dirname, "..", "utilities.js"), "utf8");
 const sectionNames = [
   "exercise-trend-section", "measurement-trend-section",
   "all-exercises-section", "all-measurements-section"
@@ -36,9 +37,11 @@ function createEnvironment(options = {}) {
 
     return elements.get(selector);
   };
+  const window = {};
+  runInNewContext(utilitiesSource, { window });
 
   runInNewContext(source, {
-    window: {},
+    window,
     document: {
       querySelector,
       querySelectorAll: () => sections,

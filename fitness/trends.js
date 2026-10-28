@@ -4,6 +4,8 @@
   const WORKOUT_CONFIGURATION = window.WORKOUT_CONFIG || {};
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
   const MEASUREMENTS_FORM_CONFIGURATION = WORKOUT_CONFIGURATION.measurementsForm || {};
+  const WORKOUT_UTILITIES = window.WorkoutUtilities;
+  const escapeMarkup = WORKOUT_UTILITIES.escapeHtml;
   const FORMS_READ_PERMISSIONS = WorkoutForms.READ_PERMISSIONS;
   const GOOGLE_FORMS_REQUEST_ERROR = WorkoutForms.RequestError;
   const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
@@ -82,11 +84,6 @@
   let loading = false;
 
   // ---------- helpers ----------
-  function escapeMarkup(text) {
-    return String(text ?? "").replace(/[&<>"']/g, character =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
-  }
-
   function formatDuration(secondsToFormat) {
     if (!Number.isFinite(secondsToFormat)) {
       return "–";

@@ -5,6 +5,7 @@ const { test } = require("node:test");
 const { runInNewContext } = require("node:vm");
 
 const SOURCE = readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+const UTILITIES_SOURCE = readFileSync(path.join(__dirname, "..", "utilities.js"), "utf8");
 const SUBMISSION_STATUS_SOURCE = readFileSync(path.join(__dirname, "..", "submission-status.js"), "utf8");
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
@@ -40,6 +41,7 @@ function createEnvironment(options = {}) {
     WorkoutAuth: authentication,
     WorkoutRoutines: routines
   };
+  runInNewContext(UTILITIES_SOURCE, { window });
   runInNewContext(SUBMISSION_STATUS_SOURCE, { window });
 
   // Wire the real page events and auth callbacks without rendering exercise templates.

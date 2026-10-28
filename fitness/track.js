@@ -46,6 +46,7 @@
   const REQUIRED_FORM_FIELDS = ["email", "measurementId", "date", ...FORM_FIELD_NAMES];
   const ACTIVE_SUBMISSIONS = new Set();
   const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
+  const WORKOUT_UTILITIES = window.WorkoutUtilities;
   const CENTIMETRES_PER_INCH = 2.54;
   const LITRES_PER_FLUID_OUNCE = 0.0295735295625;
   const $ = selector => document.querySelector(selector);
@@ -61,13 +62,6 @@
     return /^https:\/\/docs\.google\.com\/forms\/.+\/formResponse$/.test(FORM_CONFIGURATION.actionUrl || "") &&
       entries.every(entry => /^entry\.\d+$/.test(entry || "")) &&
       new Set(entries).size === entries.length;
-  }
-
-  function localDate() {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-
-    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
   }
 
   function currentUnits() {
@@ -401,7 +395,7 @@
     FIELD_DEFINITIONS.forEach(field => {
       $(`#measurement-${field.key}`).value = "";
     });
-    $("#measurement-date").value = localDate();
+    $("#measurement-date").value = WORKOUT_UTILITIES.getLocalDateString();
     $("#measurement-status").textContent = "";
     $("#measurement-status").className = "status";
   }
@@ -551,7 +545,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     renderFields();
-    $("#measurement-date").value = localDate();
+    $("#measurement-date").value = WORKOUT_UTILITIES.getLocalDateString();
     $("#measurement-form").addEventListener("submit", saveEntry);
     $("#measurement-form").addEventListener("input", discardClearedFields);
     $("#measurement-form").addEventListener("change", discardClearedFields);

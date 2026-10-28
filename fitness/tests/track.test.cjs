@@ -95,7 +95,7 @@ function createEnvironment(options = {}) {
       return { type: "opaque" };
     }
   };
-  for (const filename of ["google-forms.js", "submission-status.js", "track.js"]) {
+  for (const filename of ["utilities.js", "google-forms.js", "submission-status.js", "track.js"]) {
     runInNewContext(readFileSync(path.join(__dirname, "..", filename), "utf8"), context);
   }
   events.DOMContentLoaded();
