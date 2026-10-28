@@ -75,19 +75,13 @@
     $("#submit-workout").disabled = !hasFormConfig();
     refreshRoutineList();
     updateRoutineButtons();
-    
-    if (WorkoutRoutines.isConfigured() && WorkoutRoutines.hasCachedToken()) {
-      runRoutineAction(async signedInUser => {
-        const catalog = await WorkoutRoutines.load();
 
-        if (currentUser === signedInUser) {
-          applyRoutineCatalog(catalog);
-        }
-      });
+    if (WorkoutRoutines.isConfigured()) {
+      loadSharedRoutines();
     } else {
       setRoutineStatus("Load shared configurations to choose a workout saved by any user.");
     }
-    
+
     renderHistory();
     updateQueueUi();
     flushQueue();
@@ -382,6 +376,16 @@
       routinesBusy = false;
       updateRoutineButtons();
     }
+  }
+
+  function loadSharedRoutines() {
+    return runRoutineAction(async user => {
+      const catalog = await WorkoutRoutines.load();
+
+      if (currentUser === user) {
+        applyRoutineCatalog(catalog);
+      }
+    });
   }
 
   function findRoutine(name) {
@@ -682,13 +686,7 @@
       saveDraft();
     });
 
-    $("#refresh-routines").addEventListener("click", () => runRoutineAction(async user => {
-      const catalog = await WorkoutRoutines.load();
-
-      if (currentUser === user) {
-        applyRoutineCatalog(catalog);
-      }
-    }));
+    $("#refresh-routines").addEventListener("click", loadSharedRoutines);
 
     $("#save-routine").addEventListener("click", () => {
       $$(".set").forEach(stopTimer);
@@ -710,7 +708,7 @@
           applyRoutineCatalog(catalog);
           setRoutineStatus(`Saved configuration "${workout.routine}" by ${user.email}. ` +
             `Estimated time: ${formatEstimate(estimateSeconds(workout))}. ` + catalog.warnings.join(" "),
-          catalog.warnings.length ? "error" : "ok");
+            catalog.warnings.length ? "error" : "ok");
         }
       });
     });
