@@ -7,6 +7,8 @@
   const SESSION_USER_STORAGE_KEY = "workout.user";
   const SESSION_ACCESS_TOKEN_KEY = "workout.formsToken";
   const LEGACY_SESSION_ACCESS_TOKEN_KEY = "workout.trendsToken";
+  const TOKEN_EXPIRY_BUFFER_MILLISECONDS = 60000;
+  const TOKEN_CACHE_DURATION_MILLISECONDS = 55 * 60000;
   const FORMS_READ_PERMISSIONS = [
     "https://www.googleapis.com/auth/forms.body.readonly",
     "https://www.googleapis.com/auth/forms.responses.readonly"
@@ -292,8 +294,10 @@
 
     if (typeof cachedAccessToken?.token !== "string" || !cachedAccessToken.token ||
       cachedAccessToken.email !== currentUser?.email ||
-      cachedAccessToken.expiresAt <= Date.now() + 60000 ||
+      cachedAccessToken.expiresAt <= Date.now() + TOKEN_EXPIRY_BUFFER_MILLISECONDS ||
       !Number.isFinite(cachedAccessToken.expiresAt)) {
+      clearCachedToken();
+
       return null;
     }
 
@@ -342,7 +346,7 @@
         sessionStorage.setItem(SESSION_ACCESS_TOKEN_KEY, JSON.stringify({
           token,
           email: ownerEmail,
-          expiresAt: Date.now() + 55 * 60000
+          expiresAt: Date.now() + TOKEN_CACHE_DURATION_MILLISECONDS
         }));
         sessionStorage.removeItem(LEGACY_SESSION_ACCESS_TOKEN_KEY);
 

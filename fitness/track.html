@@ -5,15 +5,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fitness Track</title>
-  <link rel="icon" href="excersise_favicon.svg" type="image/svg+xml">
-  <script src="settings.js"></script>
-  <link rel="stylesheet" href="styles.css">
-  <script src="config.js"></script>
-  <script src="utilities.js" defer></script>
-  <script src="auth.js" defer></script>
-  <script src="google-forms.js" defer></script>
-  <script src="submission-status.js" defer></script>
-  <script src="track.js" defer></script>
+  <script>
+    const assetCacheVersion = Math.floor(Date.now() / (5 * 60 * 1000));
+    const versionedScript = (path, defer = false) =>
+      `<script src="${path}?v=${assetCacheVersion}"${defer ? " defer" : ""}><\/script>`;
+
+    document.write([
+      `<link rel="icon" href="excersise_favicon.svg?v=${assetCacheVersion}" type="image/svg+xml">`,
+      versionedScript("settings.js"),
+      `<link rel="stylesheet" href="styles.css?v=${assetCacheVersion}">`,
+      versionedScript("config.js"),
+      versionedScript("utilities.js", true),
+      versionedScript("auth.js", true),
+      versionedScript("google-forms.js", true),
+      versionedScript("submission-status.js", true),
+      versionedScript("track.js", true)
+    ].join("\n"));
+  </script>
 </head>
 
 <body>

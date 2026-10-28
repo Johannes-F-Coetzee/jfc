@@ -160,8 +160,17 @@ test("reports Google Identity script errors and timeouts on the login view", asy
 test("all fitness pages let the shared auth module load Google Identity", () => {
   for (const filename of ["index.html", "track.html", "trends.html"]) {
     const markup = readFileSync(path.join(__dirname, "..", filename), "utf8");
-    assert.match(markup, /src="auth\.js" defer/);
+    assert.match(markup, /versionedScript\("auth\.js", true\)/);
     assert.doesNotMatch(markup, /src="https:\/\/accounts\.google\.com\/gsi\/client"/);
+  }
+});
+
+test("all fitness pages calculate asset cache versions programmatically", () => {
+  for (const filename of ["index.html", "track.html", "trends.html"]) {
+    const markup = readFileSync(path.join(__dirname, "..", filename), "utf8");
+    assert.match(markup, /Math\.floor\(Date\.now\(\) \/ \(5 \* 60 \* 1000\)\)/);
+    assert.match(markup, /document\.write\(/);
+    assert.doesNotMatch(markup, /\?v=\d{8}/);
   }
 });
 
@@ -227,6 +236,22 @@ test("expired, malformed and different-account caches request a fresh token", as
     assert.equal(stored.email, "current@example.com");
     assert.equal(stored.token, "new-token");
     assert.ok(stored.expiresAt > Date.now() + 54 * 60000);
+  }
+});
+
+test("invalid Forms token cache entries are cleared before requesting a fresh token", () => {
+  for (const saved of [
+    "{invalid",
+    JSON.stringify({ ...cachedToken(), expiresAt: Date.now() + 30000 }),
+    JSON.stringify(cachedToken("other@example.com")),
+    JSON.stringify({ ...cachedToken(), token: "" })
+  ]) {
+    const storage = new Map([["workout.formsToken", saved]]);
+    const environment = createEnvironment({ storage });
+    environment.signIn();
+    assert.equal(environment.auth.hasCachedToken(), false);
+    assert.equal(storage.has("workout.formsToken"), false);
+    assert.equal(storage.has("workout.trendsToken"), false);
   }
 });
 

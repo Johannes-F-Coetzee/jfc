@@ -6,10 +6,24 @@ const { runInNewContext } = require("node:vm");
 
 const source = readFileSync(path.join(__dirname, "..", "settings.js"), "utf8");
 const themes = [
-  "dark-red", "dark-green", "dark-blue",
-  "light-red", "light-green", "light-blue"
+  "dark-red", "dark-green", "dark-blue", "dark-grey",
+  "light-red", "light-green", "light-blue", "light-grey"
 ];
 const stylesheet = readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
+
+function renderAssets(filename, timestamp) {
+  const markup = readFileSync(path.join(__dirname, "..", filename), "utf8");
+  const bootstrap = /<script>\s*([\s\S]*?)<\/script>/.exec(markup);
+  const writtenMarkup = [];
+
+  assert.ok(bootstrap, `${filename}: inline asset bootstrap`);
+  runInNewContext(bootstrap[1], {
+    Date: { now: () => timestamp },
+    document: { write: value => writtenMarkup.push(value) }
+  });
+
+  return writtenMarkup.join("");
+}
 
 function themeColors(theme) {
   const colors = {};
@@ -200,16 +214,25 @@ test("Escape closes settings and restores focus; outside clicks dismiss it", () 
   assert.equal(environment.menu.open, false);
 });
 
-test("all pages load settings before styles and offer all six themes", () => {
+test("all pages generate five-minute asset versions and offer all eight themes", () => {
+  const timestamp = 1740000000000;
+  const expectedVersion = Math.floor(timestamp / (5 * 60 * 1000));
+
   for (const filename of ["index.html", "trends.html", "track.html"]) {
     const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
     const pageScript = filename === "index.html" ? "app.js" : filename.replace(".html", ".js");
-    const utilitiesScriptIndex = html.indexOf('<script src="utilities.js" defer></script>');
+    const assets = renderAssets(filename, timestamp);
+    const assetUrls = [...assets.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]);
+    const expectedSuffix = `?v=${expectedVersion}`;
+    const utilitiesScriptIndex = assets.indexOf(`<script src="utilities.js${expectedSuffix}" defer></script>`);
 
-    assert.ok(html.indexOf('src="settings.js"') < html.indexOf('href="styles.css"'));
+    assert.ok(assetUrls.length > 0, `${filename}: generated static asset URLs`);
+    assert.ok(assetUrls.every(url => url.endsWith(expectedSuffix)), `${filename}: shared five-minute version`);
+    assert.ok(assets.indexOf(`<script src="settings.js${expectedSuffix}"></script>`) <
+      assets.indexOf(`<link rel="stylesheet" href="styles.css${expectedSuffix}">`));
     assert.notEqual(utilitiesScriptIndex, -1, `${filename}: shared utilities`);
-    assert.ok(utilitiesScriptIndex < html.indexOf(`<script src="${pageScript}" defer></script>`));
-    assert.match(html, /<link rel="icon" href="excersise_favicon\.svg" type="image\/svg\+xml">/);
+    assert.ok(utilitiesScriptIndex < assets.indexOf(`<script src="${pageScript}${expectedSuffix}" defer></script>`));
+    assert.ok(assets.includes(`<link rel="icon" href="excersise_favicon.svg${expectedSuffix}" type="image/svg+xml">`));
     assert.match(html, /<details id="settings-menu"/);
     assert.match(html, /<select id="units-select">/);
     assert.match(html, /<option value="metric">Metric \(kg\)<\/option>/);
@@ -220,6 +243,20 @@ test("all pages load settings before styles and offer all six themes", () => {
     for (const theme of themes) {
       assert.ok(html.includes(`<option value="${theme}">`), `${filename}: ${theme}`);
     }
+  }
+});
+
+test("asset cache version remains stable within a five-minute window and changes at its boundary", () => {
+  for (const filename of ["index.html", "trends.html", "track.html"]) {
+    const firstInstantInWindow = renderAssets(filename, 300001);
+    const lastInstantInWindow = renderAssets(filename, 599999);
+    const nextWindow = renderAssets(filename, 600000);
+    const versionFrom = markup => /\?v=(\d+)/.exec(markup)?.[1];
+
+    assert.equal(versionFrom(firstInstantInWindow), "1");
+    assert.equal(versionFrom(lastInstantInWindow), "1");
+    assert.equal(versionFrom(nextWindow), "2");
+    assert.notEqual(versionFrom(firstInstantInWindow), versionFrom(nextWindow));
   }
 });
 
