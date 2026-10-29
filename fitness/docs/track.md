@@ -1,0 +1,17 @@
+# Track page
+
+Behaviour of [`track.html`](../track.html). Back to the [setup guide](../../README.md).
+
+Switching measurement units preserves the original canonical values until a field is edited, even though converted fields and history are displayed rounded to two decimal places. Clear/Undo also preserves that precision.
+
+[`track.html`](../track.html) sends body measurements, weight, sleep, water, energy, and mood to a separate **Google Form**, with one response per submission. Body measurements use centimetres or inches and weight uses kilograms or pounds according to Settings; sleep is in hours and water is in litres or US fluid ounces. Responses always store centimetres (`neckCm`, `bicepLCm`, etc.), kilograms (`weightKg`), hours (`sleepHours`), and litres (`waterLitres`), plus `email`, `measurementId`, `date`, `energy`, and `mood`. The page groups fields into Body, Daily state, and Circumference, in that order. Energy and mood are dropdowns with the same options as the page.
+
+On sign-in, Track reads measurement responses for the signed-in email to identify dates that already have a record. Selecting one highlights the date field and warns that submitting will add another response; duplicate submissions require confirmation. This lookup requires Forms API access and edit access to the measurements form. The browser's native date picker cannot mark individual calendar days, so the duplicate indicator appears below the selected date.
+
+**Submit measurements** uses the same full-width submit row as the Log page, staying pinned to the bottom of the screen on phones. **Clear fields** and submission status appear below it. **Undo** restores cleared fields and their date until you edit the form, submit, or change accounts. Clearing fields does not delete history or queued submissions.
+
+The latest entry per date and all pending submissions are stored together on this device, separately for each signed-in account. Network failures retain the pending responses, which retry on sign-in, when the browser comes online, or with **Retry now**. A completed anonymous Google Forms POST is opaque: the page reports that requests were sent, not that Google confirmed storage. A timeout or storage failure after sending may cause a duplicate response on retry; `measurementId` identifies retries of the same submission.
+
+**Measurement history (this device)** is read-only; entries cannot be edited or loaded into the form from history. Submitting another entry for the same date appends a new Google Form response and updates the local daily history to the latest submitted values. Previous device-only entries are preserved but are not automatically uploaded. The page does not load history from Google or synchronize history across devices.
+
+To configure measurements, run **`createMeasurementsForm`** from [`fitness/setup/create-form.gs`](../setup/create-form.gs) in Google Apps Script, grant access, and copy its logged **`measurementsForm: {...}`** block into [`fitness/config.js`](../config.js), replacing the empty measurements block only. This creates a separate form and linked response spreadsheet. Publish it, allow anonymous responses, disable automatic email collection and one-response limits, and leave measurement questions optional so partial entries can be submitted. No additional OAuth scopes or form-edit permission are needed to submit measurements. All entry mappings are required; missing or duplicate mappings disable submission and show setup instructions.
