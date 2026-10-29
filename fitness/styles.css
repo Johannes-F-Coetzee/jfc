@@ -10,16 +10,16 @@
 }
 
 :root[data-theme="dark-red"] {
-  --bg: #2b1d1c;
-  --card: #462d2d;
-  --border: #674343;
+  --bg: #2D1C1B;
+  --card: #492B2B;
+  --border: #6B3F3F;
   --text: #e2e8f0;
-  --muted: #c5a2a2;
-  --accent: #dd9494;
-  --accent-strong: #bf3838;
+  --muted: #C89E9E;
+  --accent: #E48D8D;
+  --accent-strong: #CC2B2B;
   --on-accent: #ffffff;
-  --ok: #88d9a0;
-  --error: #ffb4ab;
+  --ok: #80E19D;
+  --error: #FFB4AB;
   --warn-bg: #3f321c;
   --warn-border: #a16207;
   --exercise-bg: rgba(42, 15, 15, 0.4);
