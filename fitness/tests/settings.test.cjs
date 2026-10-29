@@ -214,34 +214,40 @@ test("Escape closes settings and restores focus; outside clicks dismiss it", () 
   assert.equal(environment.menu.open, false);
 });
 
-test("all pages generate five-minute asset versions and offer all eight themes", () => {
+test("fitness pages load the shared header and keep page-specific navigation", () => {
   const timestamp = 1740000000000;
   const expectedVersion = Math.floor(timestamp / (5 * 60 * 1000));
+  const sharedHeader = readFileSync(path.join(__dirname, "..", "shared-header.js"), "utf8");
 
   for (const filename of ["index.html", "trends.html", "track.html"]) {
     const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
     const pageScript = filename === "index.html" ? "app.js" : filename.replace(".html", ".js");
+    const pageName = filename === "index.html" ? "log" : filename.replace(".html", "");
     const assets = renderAssets(filename, timestamp);
     const assetUrls = [...assets.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]);
     const expectedSuffix = `?v=${expectedVersion}`;
+    const sharedHeaderScriptIndex = assets.indexOf(`<script src="shared-header.js${expectedSuffix}" defer></script>`);
     const utilitiesScriptIndex = assets.indexOf(`<script src="utilities.js${expectedSuffix}" defer></script>`);
 
     assert.ok(assetUrls.length > 0, `${filename}: generated static asset URLs`);
     assert.ok(assetUrls.every(url => url.endsWith(expectedSuffix)), `${filename}: shared five-minute version`);
     assert.ok(assets.indexOf(`<script src="settings.js${expectedSuffix}"></script>`) <
       assets.indexOf(`<link rel="stylesheet" href="styles.css${expectedSuffix}">`));
+    assert.notEqual(sharedHeaderScriptIndex, -1, `${filename}: shared header script`);
+    assert.ok(sharedHeaderScriptIndex < utilitiesScriptIndex, `${filename}: header before page initialization`);
     assert.notEqual(utilitiesScriptIndex, -1, `${filename}: shared utilities`);
     assert.ok(utilitiesScriptIndex < assets.indexOf(`<script src="${pageScript}${expectedSuffix}" defer></script>`));
     assert.ok(assets.includes(`<link rel="icon" href="excersise_favicon.svg${expectedSuffix}" type="image/svg+xml">`));
-    assert.match(html, /<details id="settings-menu"/);
-    assert.match(html, /<select id="units-select">/);
-    assert.match(html, /<option value="metric">Metric \(kg\)<\/option>/);
-    assert.match(html, /<option value="imperial">Imperial \(lb\)<\/option>/);
-    assert.match(html, /<select id="default-measure-select" aria-describedby="default-measure-help">/);
-    assert.match(html, /<option value="reps">Reps<\/option>/);
-    assert.match(html, /<option value="time">Time<\/option>/);
+    assert.ok(html.includes(`<header id="fitness-header" class="topbar" data-page="${pageName}"></header>`));
+    assert.match(sharedHeader, /<details id="settings-menu"/);
+    assert.match(sharedHeader, /<select id="units-select">/);
+    assert.match(sharedHeader, /<option value="metric">Metric \(kg, cm, L\)<\/option>/);
+    assert.match(sharedHeader, /<option value="imperial">Imperial \(lb, in, fl oz\)<\/option>/);
+    assert.match(sharedHeader, /<select id="default-measure-select" aria-describedby="default-measure-help">/);
+    assert.match(sharedHeader, /<option value="reps">Reps<\/option>/);
+    assert.match(sharedHeader, /<option value="time">Time<\/option>/);
     for (const theme of themes) {
-      assert.ok(html.includes(`<option value="${theme}">`), `${filename}: ${theme}`);
+      assert.ok(sharedHeader.includes(`<option value="${theme}">`), theme);
     }
   }
 });
