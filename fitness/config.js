@@ -58,6 +58,25 @@ window.WORKOUT_CONFIG = {
     }
   },
 
+  // Run createWorkoutPlanForm in setup/create-form.gs and replace this block with its output.
+  // Plan reads require edit access to this separate form.
+  planForm: {
+    formId: "1fn8Qa33JGGQ8WSpQj_sH0yF-OzziBOhpyxsYsWSXRS8",
+    actionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSeYqPI4kX1whevWMQRKg2GU6ssbM_m83BtWCLOgPSqCj1Vy6w/formResponse",
+    fields: {
+      email: "entry.1924532178",
+      planId: "entry.1604769508",
+      planName: "entry.648385210",
+      duration: "entry.704551280",
+      durationUnit: "entry.1414625885",
+      startDate: "entry.49689005",
+      totalRoutines: "entry.1669619232",
+      routineOrder: "entry.2025836555",
+      cycleDay: "entry.264452298",
+      routine: "entry.1100658434"
+    }
+  },
+
   form: {
     // Edit ID of the form, used by the Trends page to read responses through the Google Forms API.
     // It's the long ID in the form editor URL: https://docs.google.com/forms/d/<FORM_ID>/edit (not the /d/e/... ID).

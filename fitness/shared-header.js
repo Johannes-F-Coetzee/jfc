@@ -4,6 +4,7 @@
   const PAGE_CONFIGURATIONS = {
     log: { title: "Workout log" },
     track: { title: "Track" },
+    plan: { title: "Plan" },
     trends: { title: "Trends" }
   };
   const header = document.querySelector("#fitness-header");
@@ -20,6 +21,7 @@
     <nav class="nav" aria-label="Fitness pages">
       <a href="./" data-page="log">Log</a>
       <a href="track.html" data-page="track">Track</a>
+      <a href="plan.html" data-page="plan">Plan</a>
       <a href="trends.html" data-page="trends">Trends</a>
     </nav>
     <details id="settings-menu" class="settings-menu">

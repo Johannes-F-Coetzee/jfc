@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fitness Plan</title>
+  <script>
+    const assetCacheVersion = Math.floor(Date.now() / (5 * 60 * 1000));
+    const versionedScript = (path, defer = false) =>
+      `<script src="${path}?v=${assetCacheVersion}"${defer ? " defer" : ""}><\/script>`;
+
+    document.write([
+      `<link rel="icon" href="excersise_favicon.svg?v=${assetCacheVersion}" type="image/svg+xml">`,
+      versionedScript("settings.js"),
+      `<link rel="stylesheet" href="styles.css?v=${assetCacheVersion}">`,
+      versionedScript("config.js"),
+      versionedScript("shared-header.js", true),
+      versionedScript("utilities.js", true),
+      versionedScript("auth.js", true),
+      versionedScript("google-forms.js", true),
+      versionedScript("routines.js", true),
+      versionedScript("plans.js", true),
+      versionedScript("plan.js", true)
+    ].join("\n"));
+  </script>
+</head>
+
+<body class="fitness-plan">
+  <header id="fitness-header" class="topbar" data-page="plan"></header>
+
+  <main>
+    <section id="setup-warning" class="card warning" hidden>
+      <strong>Plan form setup required</strong>
+      <p>Run <code>createWorkoutPlanForm</code> in <code>fitness/setup/create-form.gs</code>
+        and paste its logged <code>planForm</code> block into <code>fitness/config.js</code>.
+        Publish the form, allow anonymous responses, and give tracker users edit access for loading.
+        Local planning and JSON export still work without this setup.</p>
+    </section>
+
+    <section id="login-view" class="card center">
+      <h2>Sign in</h2>
+      <p>Sign in with your Google account to plan your workouts.</p>
+      <div id="google-signin-button"></div>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="plan-view" hidden>
+      <form id="plan-details" class="card">
+        <h2>Plan details</h2>
+        <div class="grid">
+          <div class="field">
+            <div class="plan-name-heading">
+              <label id="plan-name-label" for="plan-name">Plan name</label>
+              <button type="button" id="choose-saved-plan" class="btn link" hidden>Choose a saved plan</button>
+            </div>
+            <span class="routine-picker">
+              <select id="plan-name-select" hidden></select>
+              <span id="plan-name-capture" class="routine-capture">
+                <input id="plan-name" autocomplete="off" placeholder="e.g. Strength cycle">
+                <button type="button" id="clear-plan-name" class="icon-btn" aria-label="Clear plan name"
+                  title="Clear plan name">&times;</button>
+              </span>
+            </span>
+          </div>
+          <label class="field" for="cycle-duration">Cycle duration
+            <input id="cycle-duration" type="number" min="1" step="1" value="4" required>
+          </label>
+          <label class="field" for="cycle-unit">Duration unit
+            <select id="cycle-unit">
+              <option value="days">Days</option>
+              <option value="weeks" selected>Weeks</option>
+            </select>
+          </label>
+          <div class="field">
+            <label for="plan-start-date">Start date</label>
+            <div class="plan-start-controls">
+              <input id="plan-start-date" type="date" min="0001-01-01" max="9999-12-31"
+                aria-describedby="plan-start-help" required>
+            </div>
+          </div>
+        </div>
+        <p id="plan-start-help" class="muted"></p>
+        <p class="muted">Apply the plan details before adding routines. Cycle days are dated from the start date.
+          Drafts are saved on this device for your signed-in account. Use Save plan to Google Forms to keep a named
+          snapshot.</p>
+        <button type="submit" class="btn link">Apply plan details</button>
+        <button type="button" id="clear-plan-details" class="btn link">Clear all entries</button>
+        <p class="muted">Saved snapshots appear in the Plan name menu. Selecting one replaces this device's current
+          draft after confirmation.
+          Snapshots cannot be overwritten; use a new name for changes.</p>
+        <button type="button" id="refresh-plans" class="btn ghost small">Refresh saved plans</button>
+        <div class="submit-row">
+          <button type="button" id="save-plan" class="btn primary">Save plan to Google Forms</button>
+        </div>
+        <p id="plan-status" class="status" role="status" aria-live="polite"></p>
+        <p id="plan-cloud-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="plan-header card">
+        <div class="week-navigation">
+          <button type="button" id="prev-week" class="btn ghost small" aria-label="Previous week">&larr;</button>
+          <div class="week-range">
+            <span id="week-range-text"></span>
+          </div>
+          <button type="button" id="next-week" class="btn ghost small" aria-label="Next week">&rarr;</button>
+        </div>
+        <form id="routine-capture-form" class="plan-controls">
+          <div class="field">
+            <label for="routine-select">Add routine:</label>
+            <select id="routine-select" aria-label="Select routine to add">
+              <option value="">Routines loading...</option>
+            </select>
+          </div>
+          <div id="cycle-week-field" class="field">
+            <label for="cycle-week">Cycle week:</label>
+            <input id="cycle-week" type="number" min="1" step="1" value="1" required>
+          </div>
+          <div class="field">
+            <label for="day-select">Cycle day:</label>
+            <select id="day-select" aria-label="Select cycle day to add routine"></select>
+          </div>
+          <button type="submit" id="add-routine-btn" class="btn secondary" disabled>Add routine</button>
+        </form>
+        <button type="button" id="refresh-routines" class="btn ghost small">Refresh routines</button>
+      </div>
+
+      <div class="calendar card" tabindex="0" role="region" aria-label="Full plan calendar">
+        <div id="calendar-grid" class="calendar-grid"></div>
+      </div>
+
+      <section class="card plan-actions">
+        <h2>Plan actions</h2>
+        <div class="row">
+          <button type="button" id="export-plan" class="btn ghost small">Export plan as JSON</button>
+          <button type="button" id="clear-plan" class="btn link">Clear all entries</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <template id="day-card-template">
+    <div class="day-card" data-day-index="0">
+      <div class="day-header">
+        <h3 class="day-name"></h3>
+        <span class="day-date"></span>
+      </div>
+      <div class="day-routines"></div>
+      <div class="day-capture">
+        <button type="button" class="btn ghost small day-add">+ Add</button>
+        <form class="day-routine-form" hidden>
+          <select class="day-routine-select" required></select>
+          <button type="submit" class="btn ghost small day-confirm">&#10003;</button>
+          <p class="day-capture-status error" role="alert"></p>
+        </form>
+      </div>
+    </div>
+  </template>
+
+  <template id="routine-entry-template">
+    <div class="routine-entry" data-routine-name="">
+      <span class="routine-entry-name"></span>
+      <button type="button" class="icon-btn remove-routine" aria-label="Remove routine"
+        title="Remove routine">&times;</button>
+    </div>
+  </template>
+</body>
+
+</html>

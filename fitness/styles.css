@@ -1039,3 +1039,338 @@ tbody tr:hover {
     min-height: 2.75rem;
   }
 }
+
+/* Plan page styles */
+
+.fitness-plan main {
+  max-width: 1280px;
+}
+
+#plan-view {
+  min-width: 0;
+}
+
+#plan-details .grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  align-items: end;
+}
+
+.plan-name-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1.4em;
+}
+
+.plan-name-heading .btn.link {
+  padding: 0;
+  font-size: inherit;
+  white-space: nowrap;
+}
+
+.plan-start-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plan-start-controls input {
+  flex: 1;
+}
+
+.plan-start-controls .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+#plan-view .field {
+  min-width: 0;
+}
+
+#plan-status,
+.week-range {
+  overflow-wrap: anywhere;
+}
+
+.plan-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.plan-header > #refresh-routines {
+  align-self: flex-start;
+}
+
+.week-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.week-range {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-weight: 500;
+  font-size: 1.1rem;
+}
+
+.plan-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.plan-controls:has(#cycle-week-field[hidden]) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.plan-controls .field {
+  gap: 0.25rem;
+}
+
+.plan-controls .btn.secondary {
+  margin: 0;
+  min-height: 2.75rem;
+}
+
+.plan-controls input,
+.plan-controls select {
+  min-height: 2.75rem;
+}
+
+.calendar {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.calendar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-width: 49rem;
+  gap: 1px;
+  background-color: var(--border);
+}
+
+.calendar-weekday,
+.calendar-blank {
+  background-color: var(--card);
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.calendar-weekday {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.day-card.calendar-weekend {
+  background-color: var(--exercise-bg);
+}
+
+.day-card.outside-cycle {
+  background-color: var(--bg);
+  color: var(--muted);
+}
+
+.day-card {
+  background-color: var(--card);
+  padding: 0.75rem;
+  min-width: 0;
+  min-height: 10rem;
+  overflow-wrap: anywhere;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.day-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.day-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.calendar-date-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+}
+
+.calendar-today .calendar-date-number {
+  color: var(--on-accent);
+  background: var(--accent-strong);
+}
+
+.calendar-month-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.day-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.day-routines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.day-add {
+  opacity: 0;
+  min-height: 2.75rem;
+}
+
+.day-card:hover .day-add,
+.day-card:focus-within .day-add {
+  opacity: 1;
+}
+
+.day-routine-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.day-confirm {
+  justify-self: end;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.day-capture-status {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.day-capture-status:empty {
+  display: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .day-add {
+    opacity: 1;
+  }
+}
+
+.routine-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--exercise-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.25rem;
+  word-break: break-word;
+}
+
+.routine-entry-name {
+  min-width: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.routine-entry .remove-routine {
+  flex-shrink: 0;
+  padding: 0;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.routine-entry .remove-routine:hover {
+  color: var(--accent-strong);
+}
+
+.plan-actions .row {
+  margin-bottom: 0;
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .routine-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .routine-entry .remove-routine {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 1000px) {
+  .plan-controls,
+  .plan-controls:has(#cycle-week-field[hidden]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plan-controls:has(#cycle-week-field[hidden]) > .btn {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar .nav {
+    order: 1;
+    flex: 1 0 100%;
+    justify-content: center;
+  }
+
+  .topbar .settings-menu {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .plan-controls,
+  .plan-controls:has(#cycle-week-field[hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plan-controls:has(#cycle-week-field[hidden]) > .btn {
+    grid-column: auto;
+  }
+
+  .plan-header {
+    gap: 1rem;
+  }
+
+  .week-navigation {
+    gap: 0.5rem;
+  }
+
+  .week-range {
+    font-size: 0.95rem;
+  }
+
+}

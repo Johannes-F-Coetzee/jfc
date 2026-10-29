@@ -5,6 +5,7 @@
  *   1. Open https://script.google.com, create a new project and paste this file.
  *   2. Run `createWorkoutForm` for logs and `createWorkoutConfigurationForm` for shared configurations.
  *      Run `createMeasurementsForm` for measurements and daily states.
+ *      Run `createWorkoutPlanForm` for named plan snapshots.
  *   3. Copy the printed configuration blocks into fitness/config.js.
  */
 
@@ -66,6 +67,24 @@ const MEASUREMENT_FIELDS = [
   ["energy", "Energy", ["spent", "weak", "tired", "fair", "good", "strong"]],
   ["mood", "Mood", ["bad", "poor", "meh", "fair", "good", "great"]]
 ];
+
+const PLAN_FIELDS = [
+  ["email", "Email"],
+  ["planId", "Plan ID"],
+  ["planName", "Plan name"],
+  ["duration", "Cycle duration"],
+  ["durationUnit", "Duration unit (days/weeks)"],
+  ["startDate", "Start date"],
+  ["totalRoutines", "Total routines"],
+  ["routineOrder", "Routine order"],
+  ["cycleDay", "Cycle day"],
+  ["routine", "Routine"]
+];
+
+function createWorkoutPlanForm() {
+  createTrackerForm("Fitness Tracker Plans", "planForm", PLAN_FIELDS,
+    "Backend for fitness plan snapshots. One response per scheduled routine. Do not rename questions.");
+}
 
 function createWorkoutForm() {
   createTrackerForm("Workout Tracker Log", "form", FIELDS);

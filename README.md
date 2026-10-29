@@ -8,6 +8,7 @@ Static GitHub Pages site.
 | Fitness tracker | [`fitness/`](fitness/) |
 | Fitness trends | [`fitness/trends.html`](fitness/trends.html) |
 | Fitness tracking | [`fitness/track.html`](fitness/track.html) |
+| Fitness plan | [`fitness/plan.html`](fitness/plan.html) |
 
 ## Fitness tracker
 
@@ -25,6 +26,57 @@ Static GitHub Pages site.
 - **Settings** across Log, Trends, and Measurements includes eight themes: Dark Red (the default), Dark Green, Dark Blue, Dark Grey, Light Red, Light Green, Light Blue, and Light Grey. Changes apply immediately to both the page and its favicon and are remembered on this device, without requiring sign-in.
 - **Units** in Settings selects Metric (kg, the default) or Imperial (lb) for weight entry, trend tables, and weight/volume charts. Switching units converts current entries without clearing the workout. The preference is remembered on this device across all three pages; drafts, queued submissions, shared configurations, and exports continue to store kilograms for compatibility.
 - **Default exercise measure** in Settings selects Reps (the default) or Time for new exercises, including the first exercise in a new or cleared workout. The preference is remembered on this device and can be changed on Log or Trends. Existing exercises, restored drafts, and saved configurations retain their recorded measure; each exercise can still be changed individually.
+
+### Plan page
+
+[`fitness/plan.html`](fitness/plan.html) captures a plan name and a positive whole-number cycle duration in days or weeks. Choose **Apply plan details** before adding routines; changing details requires applying them again. One week means seven days.
+
+Choose a **Start date** to date the cycle days. The Calendar card displays the entire configured cycle in one continuous Monday-first grid, with a single weekday header, compact date numbers, inline month markers, and a highlight for today. Both day-based and week-based cycles show each full month covered by the cycle, with dates outside the cycle marked unavailable. Week-based cycles only accept Monday start dates (the date field uses seven-day steps anchored to a Monday). The previous/next controls and cycle week input select the month or week for routine capture without hiding other calendar dates. Routine capture only offers dates within the cycle. Changing the start date moves existing routines with their numbered cycle days. Shortening a cycle is blocked if it would exclude scheduled routines; remove those entries first. **Refresh routines** loads saved routines and requests Google Forms access when necessary.
+
+Switching a weekly plan to **Days** keeps its current valid start date; an empty date defaults to today. Switching to **Weeks** uses the next Monday (the following week if today is Monday). New plans also default to the next Monday. Apply the details to save the change.
+
+The calendar keeps seven weekday columns at every screen size. On smaller screens, scroll within the keyboard-focusable Calendar card to view the remaining columns without widening the page.
+
+Routines load automatically on sign-in, including a restored sign-in when the page loads. Dropdowns show **Routines loading...** until the request finishes, then display the loaded options. Empty results and failures are shown in the dropdown and status; **Refresh routines** retries loading if Google requires a permission popup. Refreshing preserves selections that are still available.
+
+Hover over a date within the cycle (or focus it with the keyboard) to reveal **+ Add**. Touchscreens always show the button. If details have not been applied, Add takes you to the plan details with guidance; if routines have not loaded, Add attempts to load them and reports any access errors. Choose a routine in the inline dropdown and press the check button to save it on that date, independently of the capture controls above. Press Escape to cancel the inline picker. Apply plan details before saving routines; dates outside the cycle cannot capture routines.
+
+Saving a day closes only that day's inline picker. Open pickers and unsaved selections on other dates are kept while the calendar updates.
+
+Visible dates after the cycle ends preview the repeating routine schedule for both duration units. These previews have no add or remove controls and are not saved as extra routines. Dates before the plan starts remain empty. Editing a routine within the cycle updates its future previews.
+
+The plan is saved per signed-in account on this device under `plan.cycle:<email>` as `{name, duration, unit, startDate, routines}`, where `startDate` is `YYYY-MM-DD` and `routines` maps one-based cycle day numbers to routine-name arrays. Older cycle plans using `entries` are read as `routines` and use the new name when next saved. Existing cycle plans without a start date keep their routines; apply a start date to resume capture. Export uses the same shape. Clearing routines keeps the details. Earlier date-based `plan.calendar:<email>` data is left untouched and is not converted into cycle days.
+
+#### Google Forms plan snapshots
+
+The **Saved plans** card saves and loads named snapshots using a separate Google Form. The local draft still saves automatically; **Apply plan details** and calendar check buttons do not submit snapshots. Apply the details, add at least one routine, and confirm or cancel all open pickers before choosing **Save plan to Google Forms**. Snapshots cannot be overwritten: use a new name for changes. Names are unique per account, ignoring case. The list loads automatically on sign-in; use **Refresh saved plans** to retry permission requests or refresh the form data. **Load selected plan** replaces the local draft after confirmation and preserves the snapshot's start date. Editing the loaded draft does not change the stored snapshot.
+
+Each scheduled routine is a separate form response with all plan details repeated:
+
+| Field | Value |
+|-------|-------|
+| `email` | Signed-in account |
+| `planId` | Shared identifier for the snapshot |
+| `planName` | Plan name |
+| `duration`, `durationUnit` | Cycle duration and `days`/`weeks` |
+| `startDate` | `YYYY-MM-DD` |
+| `totalRoutines` | Number of scheduled routine rows in the snapshot |
+| `routineOrder` | One-based row order |
+| `cycleDay` | One-based day within the cycle |
+| `routine` | Saved routine name |
+
+Rest days and future read-only previews do not create rows. Multiple routines on one day create multiple rows. Routine names reference the shared configurations; exercises and sets are not duplicated in the plan form.
+
+A save succeeds only after every row is read back through the Forms API. If it fails, retry on the same device/account with the same name and unchanged details/routines; `plan.pendingSnapshot:<email>:<name>` retains the identifier so confirmed rows are skipped. Incomplete or conflicting snapshots reserve their name but are withheld from the load list and reported in the status. Forms has no transactions or server-side uniqueness, so concurrent saves can conflict; resolve duplicate/conflicting rows in Google Forms. This is an online save operation, not an offline submission queue.
+
+To create the backend:
+
+1. Run **`createWorkoutPlanForm`** from [`fitness/setup/create-form.gs`](fitness/setup/create-form.gs) in your Google Apps Script project.
+2. Paste its logged **`planForm: {...}`** block into [`fitness/config.js`](fitness/config.js), replacing only the empty `planForm` block. Keep existing log, routine configuration, and measurement form blocks.
+3. Publish the new form and enable anonymous responses, with automatic email collection and one-response limits disabled. Do not rename its questions. The script also creates a response spreadsheet.
+4. Give each tracker user **edit access** to this form. Enable the Google Forms API and the same two read-only OAuth scopes used for routines/trends. No new scopes are required.
+
+Without setup, the page displays instructions and disables cloud controls; local drafting, calendar capture, and export remain available. The UI lists only the signed-in email's snapshots, but this is not a privacy boundary: form editors can read all responses directly, and anonymous email values are claimed attribution. Share the backend only with trusted users.
 
 ### Trends page
 
@@ -89,6 +141,7 @@ To configure measurements, run **`createMeasurementsForm`** from [`fitness/setup
 Local testing: `python -m http.server 8000`, then open <http://localhost:8000/fitness/>. Use an HTTP origin authorized for the OAuth client rather than opening the page directly with `file://`.
 
 Configuration regression tests (Node.js): `node --test fitness/tests/routines.test.cjs`.
+Plan snapshot regression tests (Node.js): `node --test fitness/tests/plans.test.cjs`.
 Theme/settings regression tests (Node.js): `node --test fitness/tests/settings.test.cjs`.
 Track page regression tests (Node.js): `node --test fitness/tests/track.test.cjs`.
 Google authentication and Forms integration regression tests (Node.js): `node --test fitness/tests/auth.test.cjs fitness/tests/google-forms.test.cjs`.
@@ -96,13 +149,14 @@ All fitness regression tests (Node.js): `node --test fitness/tests`.
 
 ### Shared Google integration
 
-All three fitness pages use the same browser-native integration modules:
+All fitness pages use the same browser-native integration modules:
 
 - [`fitness/auth.js`](fitness/auth.js) loads Google Identity Services, renders sign-in, restores the existing `workout.user` session, and handles sign-out. It also owns Forms read consent and the account-bound `workout.formsToken` cache, migrating the legacy `workout.trendsToken` key. Concurrent token requests share one consent request; after the first successful Forms read, missing, rejected, or expired tokens can trigger another permission popup. Sign-out clears both token keys, and a token returned after an account change is discarded. The two read-only Forms scopes and existing session/token storage shapes are unchanged.
 - [`fitness/google-forms.js`](fitness/google-forms.js) provides submission configuration checks, anonymous form POSTs with a 15-second timeout, API errors, question mapping, paginated response reads, and answer decoding. Authenticated reads use the shared token cache. Trends retains its one-time refresh/retry on HTTP 401; routine reads invalidate rejected tokens and leave retrying to the existing routine action.
 - Page scripts keep their domain-specific validation, units, history, queues, and status messages. Log and Track still report an opaque POST as sent, not confirmed; routine saves still read back every set before reporting success. Workout form mappings may remain optional, while Track requires all mappings to be present and unique.
+- [`fitness/plans.js`](fitness/plans.js) uses the same read/POST helpers for account-filtered plan snapshots, with complete-row validation, name conflict checks, resumable pending saves, and read-back confirmation.
 
-The three Fitness HTML pages programmatically add a shared `?v=` query value to every local script, stylesheet, and favicon URL. The value is calculated from the current time in five-minute windows, so asset URLs automatically change without manual version bumps. Google Forms API reads bypass the HTTP cache; access tokens remain in session storage with expiry checks, while drafts, queues, settings, and histories remain durable device data in their existing storage formats.
+The Fitness HTML pages programmatically add a shared `?v=` query value to every local script, stylesheet, and favicon URL. The value is calculated from the current time in five-minute windows, so asset URLs automatically change without manual version bumps. Google Forms API reads bypass the HTTP cache; access tokens remain in session storage with expiry checks, while drafts, queues, settings, and histories remain durable device data in their existing storage formats.
 
 Google Identity load failures are shown in the sign-in view. No credentials or access tokens belong in configuration files, exported routines, or commits.
 
