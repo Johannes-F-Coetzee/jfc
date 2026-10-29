@@ -10,46 +10,33 @@
     "dark-red", "dark-green", "dark-blue", "dark-grey",
     "light-red", "light-green", "light-blue", "light-grey"
   ]);
-  let theme = DEFAULT_THEME;
-  let units = "metric";
-  let defaultMeasure = "reps";
-  let storageMessage = "";
+  const SAVED_SETTINGS = {
+    theme: { key: STORAGE_KEY, isValid: value => THEMES.has(value), fallback: DEFAULT_THEME, subject: "theme is", fallbackLabel: "Dark Red" },
+    units: { key: UNITS_STORAGE_KEY, isValid: value => value === "metric" || value === "imperial", fallback: "metric", subject: "units are", fallbackLabel: "Metric" },
+    defaultMeasure: { key: DEFAULT_MEASURE_STORAGE_KEY, isValid: value => value === "reps" || value === "time", fallback: "reps", subject: "default measure is", fallbackLabel: "Reps" }
+  };
+  const current = {};
+  const storageMessages = [];
 
   try {
-    const savedTheme = localStorage.getItem(STORAGE_KEY);
+    for (const [name, setting] of Object.entries(SAVED_SETTINGS)) {
+      const saved = localStorage.getItem(setting.key);
+      current[name] = saved !== null && setting.isValid(saved) ? saved : setting.fallback;
 
-    if (savedTheme !== null) {
-      if (THEMES.has(savedTheme)) {
-        theme = savedTheme;
-      } else {
-        storageMessage = "The saved theme is not supported. Using Dark Red.";
-        console.warn(storageMessage);
+      if (saved !== null && !setting.isValid(saved)) {
+        const message = `The saved ${setting.subject} not supported. Using ${setting.fallbackLabel}.`;
+        storageMessages.push(message);
+        console.warn(message);
       }
     }
-
-    const savedUnits = localStorage.getItem(UNITS_STORAGE_KEY);
-
-    if (savedUnits === "metric" || savedUnits === "imperial") {
-      units = savedUnits;
-    } else if (savedUnits !== null) {
-      const message = "The saved units are not supported. Using Metric.";
-      storageMessage = [storageMessage, message].filter(Boolean).join(" ");
-      console.warn(message);
-    }
-
-    const savedMeasure = localStorage.getItem(DEFAULT_MEASURE_STORAGE_KEY);
-
-    if (savedMeasure === "reps" || savedMeasure === "time") {
-      defaultMeasure = savedMeasure;
-    } else if (savedMeasure !== null) {
-      const message = "The saved default measure is not supported. Using Reps.";
-      storageMessage = [storageMessage, message].filter(Boolean).join(" ");
-      console.warn(message);
-    }
   } catch (error) {
-    storageMessage = "Your saved settings could not be read. Changes may not be remembered on this device.";
-    console.error(storageMessage, error);
+    storageMessages.length = 0;
+    storageMessages.push("Your saved settings could not be read. Changes may not be remembered on this device.");
+    console.error(storageMessages[0], error);
   }
+
+  let { theme = DEFAULT_THEME, units = "metric", defaultMeasure = "reps" } = current;
+  let storageMessage = storageMessages.join(" ");
 
   document.documentElement.dataset.theme = theme;
 

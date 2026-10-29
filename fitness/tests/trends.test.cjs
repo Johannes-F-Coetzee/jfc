@@ -7,7 +7,7 @@ const { runInNewContext } = require("node:vm");
 const source = readFileSync(path.join(__dirname, "..", "trends.js"), "utf8");
 const utilitiesSource = readFileSync(path.join(__dirname, "..", "utilities.js"), "utf8");
 const formsSource = readFileSync(path.join(__dirname, "..", "google-forms.js"), "utf8");
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const { settle } = require("./helpers.cjs");
 const sectionNames = [
   "exercise-trend-section", "measurement-trend-section",
   "all-exercises-section", "all-measurements-section"

@@ -37,3 +37,18 @@ test("confirms future dates while allowing today and earlier dates without a pro
     "The selected date (2026-10-29) is in the future. Submit anyway?"
   ]);
 });
+
+test("html escapes interpolations, keeps nested html, and joins arrays", () => {
+  const { html, rawHtml, setHtml } = window.WorkoutUtilities;
+  const unsafe = `<b>"x"</b>`;
+
+  assert.equal(String(html`<p>${unsafe}</p>`), "<p>&lt;b&gt;&quot;x&quot;&lt;/b&gt;</p>");
+  assert.equal(String(html`<ul>${["a", "<i>"].map(item => html`<li>${item}</li>`)}</ul>`),
+    "<ul><li>a</li><li>&lt;i&gt;</li></ul>");
+  assert.equal(String(html`<p>${rawHtml("<br>")}${null}${undefined}${0}</p>`), "<p><br>0</p>");
+  assert.equal(String(html`<p>${html`<em>${"&"}</em>`}</p>`), "<p><em>&amp;</em></p>");
+
+  const element = {};
+  setHtml(element, html`<i>${"<"}</i>`);
+  assert.equal(element.innerHTML, "<i>&lt;</i>");
+});

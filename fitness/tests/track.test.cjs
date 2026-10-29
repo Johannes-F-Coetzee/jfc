@@ -15,7 +15,7 @@ const CONFIGURATION = {
   fields: Object.fromEntries(FIELD_NAMES.map((field, index) => [field, `entry.${index + 1}`]))
 };
 const storageKey = email => "fitness.measurements." + encodeURIComponent(email.toLowerCase());
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const { settle } = require("./helpers.cjs");
 
 function createEnvironment(options = {}) {
   const elements = new Map();

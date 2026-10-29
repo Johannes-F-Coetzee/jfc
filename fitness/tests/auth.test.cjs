@@ -5,7 +5,7 @@ const { test } = require("node:test");
 const { runInNewContext } = require("node:vm");
 
 const SOURCE = readFileSync(path.join(__dirname, "..", "auth.js"), "utf8");
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const { settle } = require("./helpers.cjs");
 const user = email => ({ email, name: email, picture: "", expiresAt: Date.now() + 3600000 });
 const cachedToken = (email = "current@example.com", token = "cached-token") => ({
   email, token, expiresAt: Date.now() + 3600000

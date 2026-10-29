@@ -5,7 +5,7 @@
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
   const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
   const WORKOUT_UTILITIES = window.WorkoutUtilities;
-  const escapeMarkup = WORKOUT_UTILITIES.escapeHtml;
+  const { html, setHtml } = WORKOUT_UTILITIES;
   const STORAGE_KEYS = {
     draft: "workout.draft",
     queue: "workout.queue",
@@ -50,22 +50,22 @@
     const problems = [];
 
     if (!WorkoutAuth.hasConfiguredGoogleClientIdentifier()) {
-      problems.push("<code>googleClientId</code> is not set - Google sign-in is disabled.");
+      problems.push(html`<code>googleClientId</code> is not set - Google sign-in is disabled.`);
     }
 
     if (!hasFormConfig()) {
-      problems.push("The Google Form <code>actionUrl</code> / entry IDs are not set - workouts cannot be submitted.");
+      problems.push(html`The Google Form <code>actionUrl</code> / entry IDs are not set - workouts cannot be submitted.`);
     }
 
     if (!WorkoutRoutines.isConfigured()) {
-      problems.push("The separate <code>configurationForm</code> is not set - shared routines cannot be saved or loaded.");
+      problems.push(html`The separate <code>configurationForm</code> is not set - shared routines cannot be saved or loaded.`);
     }
 
     const box = $("#setup-warning");
 
     if (problems.length) {
-      box.innerHTML = "<strong>Setup required</strong> (edit <code>fitness/config.js</code>):<ul>" +
-        problems.map(problem => `<li>${problem}</li>`).join("") + "</ul>";
+      setHtml(box, html`<strong>Setup required</strong> (edit <code>fitness/config.js</code>):<ul>${
+        problems.map(problem => html`<li>${problem}</li>`)}</ul>`);
       box.hidden = false;
     }
   }
@@ -443,10 +443,9 @@
   function refreshRoutineList() {
     const routineName = $("#routine-name").value;
     const routineSelect = $("#routine-select");
-    routineSelect.innerHTML = '<option value="" disabled>Choose a routine</option>' +
-      [...sharedRoutines.keys()].sort()
-        .map(name => `<option value="${escapeMarkup(name)}">${escapeMarkup(name)}</option>`).join("") +
-      '<option value="" data-capture-new="true">Capture new</option>';
+    setHtml(routineSelect, html`<option value="" disabled>Choose a routine</option>${
+      [...sharedRoutines.keys()].sort().map(name => html`<option value="${name}">${name}</option>`)
+    }<option value="" data-capture-new="true">Capture new</option>`);
     routineSelect.value = sharedRoutines.has(routineName) ? routineName : "";
     setRoutineCaptureMode(routineCaptureRequested || !sharedRoutines.size ||
       Boolean(routineName && !sharedRoutines.has(routineName)));
@@ -479,8 +478,8 @@
     const names = new Set();
     sharedRoutines.forEach(routine => routine.exercises.forEach(exercise => names.add(exercise.name)));
     $$("#exercises .ex-name").forEach(input => input.value.trim() && names.add(input.value.trim()));
-    $("#exercise-names").innerHTML = [...names].sort()
-      .map(exerciseName => `<option value="${escapeMarkup(exerciseName)}"></option>`).join("");
+    setHtml($("#exercise-names"), [...names].sort()
+      .map(exerciseName => html`<option value="${exerciseName}"></option>`));
   }
 
   // ---------- status ----------
@@ -666,11 +665,11 @@
 
   function renderHistory() {
     const history = readJson(localStorage, STORAGE_KEYS.history, []);
-    $("#history").innerHTML = history.length
-      ? history.map(workout => `<li><strong>${escapeMarkup(workout.date)}</strong> ${escapeMarkup(workout.routine || "Workout")}
+    setHtml($("#history"), history.length
+      ? history.map(workout => html`<li><strong>${workout.date}</strong> ${workout.routine || "Workout"}
           <span class="muted">· avg difficulty ${workout.avgRpe}</span><br>
-          <span class="muted">${workout.exercises.map(escapeMarkup).join(", ")}</span></li>`).join("")
-      : `<li class="muted">No workouts logged yet.</li>`;
+          <span class="muted">${workout.exercises.join(", ")}</span></li>`)
+      : html`<li class="muted">No workouts logged yet.</li>`);
   }
 
   // ---------- event wiring ----------

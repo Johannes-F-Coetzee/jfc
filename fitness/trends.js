@@ -5,7 +5,7 @@
   const FORM_CONFIGURATION = WORKOUT_CONFIGURATION.form || {};
   const MEASUREMENTS_FORM_CONFIGURATION = WORKOUT_CONFIGURATION.measurementsForm || {};
   const WORKOUT_UTILITIES = window.WorkoutUtilities;
-  const escapeMarkup = WORKOUT_UTILITIES.escapeHtml;
+  const { html, setHtml } = WORKOUT_UTILITIES;
   const GOOGLE_FORMS_REQUEST_ERROR = WorkoutForms.RequestError;
   const SECONDS_PER_REPETITION = 10;
   const REST_SECONDS_BETWEEN_SETS = 60;
@@ -349,18 +349,17 @@
     const signedInEmail = WorkoutAuth.user.email.toLowerCase();
     const formatEmailLabel = email => email || "(no email)";
     const userOptions = users.map(([email, userCounts]) => {
-      const emailLabel = escapeMarkup(formatEmailLabel(email));
+      const emailLabel = formatEmailLabel(email);
       const signedInMarker = email === signedInEmail ? " (you)" : "";
       const countsLabel = `${userCounts.sets} set${userCounts.sets === 1 ? "" : "s"}, ` +
         `${userCounts.measurements} measurement${userCounts.measurements === 1 ? "" : "s"}`;
 
-      return `<option value="${escapeMarkup(email)}">${emailLabel}${signedInMarker} – ${countsLabel}</option>`;
-    }).join("");
+      return html`<option value="${email}">${emailLabel}${signedInMarker} – ${countsLabel}</option>`;
+    });
     const allUsersOption = users.length > 1
-      ? `<option value="${ALL_USERS_OPTION_VALUE}">All users – ${allRows.length} sets, ` +
-        `${allMeasurementRows.length} measurements</option>`
+      ? html`<option value="${ALL_USERS_OPTION_VALUE}">All users – ${allRows.length} sets, ${allMeasurementRows.length} measurements</option>`
       : "";
-    select.innerHTML = userOptions + allUsersOption;
+    setHtml(select, html`${userOptions}${allUsersOption}`);
     const userEmails = users.map(([email]) => email);
 
     if (previous && (userEmails.includes(previous) ||
@@ -538,9 +537,8 @@
         list.map(workoutRow => workoutRow.rpe).filter(Number.isFinite)
       ))]
     ];
-    $("#summary").innerHTML = cards.map(([label, value]) =>
-      `<div class="stat"><span class="stat-value">${escapeMarkup(value)}</span>` +
-      `<span class="stat-label">${escapeMarkup(label)}</span></div>`).join("");
+    setHtml($("#summary"), cards.map(([label, value]) =>
+      html`<div class="stat"><span class="stat-value">${value}</span><span class="stat-label">${label}</span></div>`));
   }
 
   function renderRoutines(sessions) {
@@ -561,32 +559,32 @@
           : NaN
       }))
       .sort((firstRoutine, secondRoutine) => secondRoutine.last.localeCompare(firstRoutine.last));
-    $("#routines-table").innerHTML = groups.length ? `
+    setHtml($("#routines-table"), groups.length ? html`
       <thead>
         <tr>
           <th>Routine</th><th>Workouts</th><th>Last done</th><th>Avg sets</th>
           <th>Avg est. time</th><th>Avg difficulty</th><th>Difficulty change</th>
         </tr>
       </thead>
-      <tbody>${groups.map(routineSummary => `<tr>
-        <td>${escapeMarkup(routineSummary.routine)}</td><td>${routineSummary.count}</td><td>${escapeMarkup(routineSummary.last)}</td>
+      <tbody>${groups.map(routineSummary => html`<tr>
+        <td>${routineSummary.routine}</td><td>${routineSummary.count}</td><td>${routineSummary.last}</td>
         <td>${formatNumber(routineSummary.averageSetCount)}</td>
         <td>${formatDuration(routineSummary.averageEstimatedSeconds)}</td>
         <td>${formatNumber(routineSummary.averagePerceivedExertion)}</td>
         <td>${trendCell(routineSummary.perceivedExertionTrend, true)}</td>
-      </tr>`).join("")}</tbody>`
-      : `<tbody><tr><td class="muted">No workouts in this period.</td></tr></tbody>`;
+      </tr>`)}</tbody>`
+      : html`<tbody><tr><td class="muted">No workouts in this period.</td></tr></tbody>`);
   }
 
   // For difficulty, a falling value at the same workload is the good direction.
   function trendCell(delta, lowerIsBetter = false) {
     if (!Number.isFinite(delta) || delta === 0) {
-      return `<span class="muted">–</span>`;
+      return html`<span class="muted">–</span>`;
     }
 
     const improvementIsPositive = lowerIsBetter ? delta < 0 : delta > 0;
 
-    return `<span class="${improvementIsPositive ? "up" : "down"}">${delta > 0 ? "▲" : "▼"} ${formatNumber(Math.abs(delta))}</span>`;
+    return html`<span class="${improvementIsPositive ? "up" : "down"}">${delta > 0 ? "▲" : "▼"} ${formatNumber(Math.abs(delta))}</span>`;
   }
 
   function renderExerciseOptions(list) {
@@ -599,9 +597,8 @@
       }))
       .sort((firstExercise, secondExercise) =>
         secondExercise.sessions - firstExercise.sessions || firstExercise.name.localeCompare(secondExercise.name));
-    exerciseSelect.innerHTML = exerciseSetCounts.map(exerciseCount =>
-      `<option value="${escapeMarkup(exerciseCount.name)}">` +
-      `${escapeMarkup(exerciseCount.name)} (${exerciseCount.sessions})</option>`).join("");
+    setHtml(exerciseSelect, exerciseSetCounts.map(exerciseCount =>
+      html`<option value="${exerciseCount.name}">${exerciseCount.name} (${exerciseCount.sessions})</option>`));
 
     if (exerciseSetCounts.some(exerciseCount => exerciseCount.name === previousExercise)) {
       exerciseSelect.value = previousExercise;
@@ -614,8 +611,8 @@
     const metricSelect = $("#metric-select");
     const previousMetric = metricSelect.value;
     const availableMetrics = metricsFor(sessions);
-    metricSelect.innerHTML = availableMetrics.map(metricName =>
-      `<option value="${metricName}">${EXERCISE_METRIC_DEFINITIONS[metricName].label}</option>`).join("");
+    setHtml(metricSelect, availableMetrics.map(metricName =>
+      html`<option value="${metricName}">${EXERCISE_METRIC_DEFINITIONS[metricName].label}</option>`));
 
     if (availableMetrics.includes(previousMetric)) {
       metricSelect.value = previousMetric;
@@ -625,25 +622,25 @@
     }
 
     const metric = metricSelect.value;
-    $("#chart").innerHTML = metric
+    setHtml($("#chart"), metric
       ? lineChart(
         sessions.filter(session => Number.isFinite(session[metric]))
           .map(session => ({ date: session.date, value: session[metric] })),
         EXERCISE_METRIC_DEFINITIONS[metric]
       )
-      : `<p class="muted">No data for this exercise in the selected period.</p>`;
+      : html`<p class="muted">No data for this exercise in the selected period.</p>`);
 
     const includesTimedSets = sessions.some(session => Number.isFinite(session.totalDurationSeconds));
-    $("#exercise-table").innerHTML = sessions.length ? `
+    setHtml($("#exercise-table"), sessions.length ? html`
       <thead><tr><th>Date</th><th>Routine</th><th>Sets</th>
         <th>${includesTimedSets ? "Total time" : "Total reps"}</th><th>${includesTimedSets ? "Best set" : "Best set (reps)"}</th>
         <th>Max weight</th><th>Avg difficulty</th></tr></thead>
-      <tbody>${sessions.slice().reverse().map(session => `<tr>
-        <td>${escapeMarkup(session.date)}</td><td>${escapeMarkup(session.routine || "–")}</td><td>${session.sets}</td>
+      <tbody>${sessions.slice().reverse().map(session => html`<tr>
+        <td>${session.date}</td><td>${session.routine || "–"}</td><td>${session.sets}</td>
         <td>${includesTimedSets ? formatDuration(session.totalDurationSeconds) : formatNumber(session.totalRepetitions, 0)}</td>
         <td>${includesTimedSets ? formatDuration(session.bestDurationSeconds) : formatNumber(session.bestRepetitions, 0)}</td>
         <td>${Number.isFinite(session.maximumWeight) ? `${formatNumber(WorkoutSettings.weightFromKg(session.maximumWeight))} ${WorkoutSettings.weightUnit}` : "–"}</td>
-        <td>${formatNumber(session.averagePerceivedExertion)}</td></tr>`).join("")}</tbody>` : "";
+        <td>${formatNumber(session.averagePerceivedExertion)}</td></tr>`)}</tbody>` : "");
   }
 
   function measurementMetricValue(measurementRow, metricName) {
@@ -681,9 +678,8 @@
     const availableMetrics = MEASUREMENT_METRIC_ORDER.filter(metricName =>
       measurementRowsInRange.some(measurementRow =>
         Number.isFinite(measurementMetricValue(measurementRow, metricName))));
-    metricSelect.innerHTML = availableMetrics.map(metricName =>
-      `<option value="${metricName}">${escapeMarkup(MEASUREMENT_METRIC_DEFINITIONS[metricName].label)}</option>`
-    ).join("");
+    setHtml(metricSelect, availableMetrics.map(metricName =>
+      html`<option value="${metricName}">${MEASUREMENT_METRIC_DEFINITIONS[metricName].label}</option>`));
 
     if (availableMetrics.includes(previousMetric)) {
       metricSelect.value = previousMetric;
@@ -713,18 +709,18 @@
       : selectedEntries.length
         ? "Showing the latest submitted entry for each date."
         : "No measurement data for the selected period.";
-    $("#measurement-chart").innerHTML = selectedEntries.length
+    setHtml($("#measurement-chart"), selectedEntries.length
       ? lineChart(selectedEntries.map(measurementRow => ({
         date: measurementRow.date,
         value: measurementMetricValue(measurementRow, metricName)
       })), metricChartDefinition)
-      : "";
-    $("#measurement-table").innerHTML = selectedEntries.length ? `
-      <thead><tr><th>Date</th><th>${escapeMarkup(metricDefinition.label)}</th></tr></thead>
-      <tbody>${selectedEntries.slice().reverse().map(measurementRow => `<tr>
-        <td>${escapeMarkup(measurementRow.date)}</td>
-        <td>${escapeMarkup(formatMeasurementValue(measurementRow, metricName))}</td>
-      </tr>`).join("")}</tbody>` : "";
+      : "");
+    setHtml($("#measurement-table"), selectedEntries.length ? html`
+      <thead><tr><th>Date</th><th>${metricDefinition.label}</th></tr></thead>
+      <tbody>${selectedEntries.slice().reverse().map(measurementRow => html`<tr>
+        <td>${measurementRow.date}</td>
+        <td>${formatMeasurementValue(measurementRow, metricName)}</td>
+      </tr>`)}</tbody>` : "");
     renderAllMeasurementsTable(measurementRowsInRange);
   }
 
@@ -738,23 +734,20 @@
         metricDefinition.options.indexOf(firstValue);
 
       if (!difference) {
-        return `<span class="muted">–</span>`;
+        return html`<span class="muted">–</span>`;
       }
 
-      return `<span class="${difference > 0 ? "up" : "down"}">` +
-        `${difference > 0 ? "▲" : "▼"} from ${escapeMarkup(firstValue)}</span>`;
+      return html`<span class="${difference > 0 ? "up" : "down"}">${difference > 0 ? "▲" : "▼"} from ${firstValue}</span>`;
     }
 
     const difference = measurementMetricValue(latestMeasurementRow, metricName) -
       measurementMetricValue(firstMeasurementRow, metricName);
 
     if (!difference) {
-      return `<span class="muted">–</span>`;
+      return html`<span class="muted">–</span>`;
     }
 
-    return `<span class="${difference > 0 ? "up" : "down"}">` +
-      `${difference > 0 ? "▲" : "▼"} ${formatNumber(Math.abs(difference))} ` +
-      `${escapeMarkup(metricDefinition.unit)}</span>`;
+    return html`<span class="${difference > 0 ? "up" : "down"}">${difference > 0 ? "▲" : "▼"} ${formatNumber(Math.abs(difference))} ${metricDefinition.unit}</span>`;
   }
 
   function renderAllMeasurementsTable(measurementRowsInRange) {
@@ -776,7 +769,7 @@
       MEASUREMENT_METRIC_ORDER.indexOf(firstMetric.metricName) -
         MEASUREMENT_METRIC_ORDER.indexOf(secondMetric.metricName));
 
-    $("#all-measurements-table").innerHTML = metricSummaries.length ? `
+    setHtml($("#all-measurements-table"), metricSummaries.length ? html`
       <thead><tr><th>Measurement</th><th>Entries</th><th>Last measured</th>
         <th>Latest</th><th>Change</th></tr></thead>
       <tbody>${metricSummaries.map(metricSummary => {
@@ -784,15 +777,15 @@
         const earliest = entries[0];
         const metricDefinition = MEASUREMENT_METRIC_DEFINITIONS[metricName];
 
-        return `<tr>
-          <td><a href="#" class="measurement-link" data-metric="${metricName}">${escapeMarkup(metricDefinition.label)}</a></td>
+        return html`<tr>
+          <td><a href="#" class="measurement-link" data-metric="${metricName}">${metricDefinition.label}</a></td>
           <td>${entries.length}</td>
-          <td>${escapeMarkup(latest.date)}</td>
-          <td>${escapeMarkup(formatMeasurementValue(latest, metricName))}</td>
-          <td>${entries.length > 1 ? measurementChangeCell(earliest, latest, metricName) : `<span class="muted">–</span>`}</td>
+          <td>${latest.date}</td>
+          <td>${formatMeasurementValue(latest, metricName)}</td>
+          <td>${entries.length > 1 ? measurementChangeCell(earliest, latest, metricName) : html`<span class="muted">–</span>`}</td>
         </tr>`;
-      }).join("")}</tbody>` : `
-      <tbody><tr><td class="muted" colspan="5">No measurements in this period.</td></tr></tbody>`;
+      })}</tbody>` : html`
+      <tbody><tr><td class="muted" colspan="5">No measurements in this period.</td></tr></tbody>`);
   }
 
   function renderExercisesTable(list) {
@@ -822,16 +815,16 @@
     }).sort((firstExercise, secondExercise) =>
       secondExercise.lastDate.localeCompare(firstExercise.lastDate) ||
       firstExercise.name.localeCompare(secondExercise.name));
-    $("#exercises-table").innerHTML = exerciseSummaries.length ? `
+    setHtml($("#exercises-table"), exerciseSummaries.length ? html`
       <thead>
         <tr>
           <th>Exercise</th><th>Workouts</th><th>Last done</th><th>Latest total</th>
           <th>Change</th><th>Max weight</th><th>Avg difficulty</th>
         </tr>
       </thead>
-      <tbody>${exerciseSummaries.map(exerciseSummary => `<tr>
-        <td><a href="#" class="ex-link" data-name="${escapeMarkup(exerciseSummary.name)}">${escapeMarkup(exerciseSummary.name)}</a></td>
-        <td>${exerciseSummary.count}</td><td>${escapeMarkup(exerciseSummary.lastDate)}</td>
+      <tbody>${exerciseSummaries.map(exerciseSummary => html`<tr>
+        <td><a href="#" class="ex-link" data-name="${exerciseSummary.name}">${exerciseSummary.name}</a></td>
+        <td>${exerciseSummary.count}</td><td>${exerciseSummary.lastDate}</td>
         <td>${exerciseSummary.includesTimedSets
           ? formatDuration(exerciseSummary.latest)
           : `${formatNumber(exerciseSummary.latest, 0)} reps`}</td>
@@ -840,22 +833,22 @@
           : trendCell(exerciseSummary.change)}</td>
         <td>${Number.isFinite(exerciseSummary.maximumWeight) ? `${formatNumber(WorkoutSettings.weightFromKg(exerciseSummary.maximumWeight))} ${WorkoutSettings.weightUnit}` : "–"}</td>
         <td>${formatNumber(exerciseSummary.averagePerceivedExertion)}</td>
-      </tr>`).join("")}</tbody>`
-      : `<tbody><tr><td class="muted">No exercises in this period.</td></tr></tbody>`;
+      </tr>`)}</tbody>`
+      : html`<tbody><tr><td class="muted">No exercises in this period.</td></tr></tbody>`);
   }
 
   function timeTrendCell(delta) {
     if (!Number.isFinite(delta) || delta === 0) {
-      return `<span class="muted">–</span>`;
+      return html`<span class="muted">–</span>`;
     }
 
-    return `<span class="${delta > 0 ? "up" : "down"}">${delta > 0 ? "▲" : "▼"} ${formatDuration(Math.abs(delta))}</span>`;
+    return html`<span class="${delta > 0 ? "up" : "down"}">${delta > 0 ? "▲" : "▼"} ${formatDuration(Math.abs(delta))}</span>`;
   }
 
   // ---------- SVG line chart ----------
   function lineChart(points, metricDefinition) {
     if (!points.length) {
-      return `<p class="muted">No data for this metric.</p>`;
+      return html`<p class="muted">No data for this metric.</p>`;
     }
 
     const chartWidth = 640;
@@ -890,9 +883,9 @@
         minimumMetricValue + ((maximumMetricValue - minimumMetricValue) * tickIndex) / 4);
     const gridLines = metricGridValues.map(metricValue => {
       const verticalPosition = getVerticalPosition(metricValue);
-      const formattedMetricValue = escapeMarkup(metricDefinition.format(metricValue));
+      const formattedMetricValue = metricDefinition.format(metricValue);
 
-      return `<line
+      return html`<line
           x1="${chartPadding.left}"
           x2="${chartWidth - chartPadding.right}"
           y1="${verticalPosition}"
@@ -902,7 +895,7 @@
           x="${chartPadding.left - 8}"
           y="${verticalPosition + 4}"
           text-anchor="end">${formattedMetricValue}</text>`;
-    }).join("");
+    });
     const dateLabelIndices = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
     const getDateLabelAnchor = dateValue => (latestDateValue === earliestDateValue
       ? "middle"
@@ -914,13 +907,13 @@
     const dateLabels = dateLabelIndices.map(pointIndex => {
       const horizontalPosition = getHorizontalPosition(dateValues[pointIndex]);
       const labelAnchor = getDateLabelAnchor(dateValues[pointIndex]);
-      const dateLabel = escapeMarkup(points[pointIndex].date);
+      const dateLabel = points[pointIndex].date;
 
-      return `<text
+      return html`<text
           x="${horizontalPosition}"
           y="${chartHeight - chartPadding.bottom + 24}"
           text-anchor="${labelAnchor}">${dateLabel}</text>`;
-    }).join("");
+    });
     const linePath = points.map((point, pointIndex) => {
       const horizontalPosition = getHorizontalPosition(dateValues[pointIndex]).toFixed(1);
       const verticalPosition = getVerticalPosition(point.value).toFixed(1);
@@ -930,14 +923,14 @@
     const chartDots = points.map((point, pointIndex) => {
       const horizontalPosition = getHorizontalPosition(dateValues[pointIndex]);
       const verticalPosition = getVerticalPosition(point.value);
-      const formattedMetricValue = escapeMarkup(metricDefinition.format(point.value));
+      const formattedMetricValue = metricDefinition.format(point.value);
 
-      return `<circle cx="${horizontalPosition}" cy="${verticalPosition}" r="4">
-        <title>${escapeMarkup(point.date)}: ${formattedMetricValue}</title>
+      return html`<circle cx="${horizontalPosition}" cy="${verticalPosition}" r="4">
+        <title>${point.date}: ${formattedMetricValue}</title>
       </circle>`;
-    }).join("");
+    });
 
-    return `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${escapeMarkup(metricDefinition.label)} over time">
+    return html`<svg viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${metricDefinition.label} over time">
       ${gridLines}${dateLabels}<path d="${linePath}" class="line"/>${chartDots}</svg>`;
   }
 

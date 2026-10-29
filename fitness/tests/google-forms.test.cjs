@@ -18,7 +18,7 @@ const DEFINITION = {
   ]
 };
 const QUESTION_FIELD_NAMES = { email: "email", "weight (kg)": "weightKg", mood: "mood" };
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const { settle } = require("./helpers.cjs");
 const plain = value => JSON.parse(JSON.stringify(value));
 const response = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
 
