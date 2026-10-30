@@ -199,6 +199,8 @@ test("Trends uses the shared read and decode pipeline for workouts and latest da
   assert.ok(environment.readCalls.every(call => call[2].retryUnauthorized));
   assert.match(environment.element("#trends-status").textContent, /Showing 1 set and 1 measurement entry/);
   assert.match(environment.element("#measurement-table").innerHTML, /81 kg/);
+  assert.match(environment.element("#measurement-chart").innerHTML,
+    /<svg [^>]*role="img" aria-label="[^"]*1 data point on 2026-10-28\. Latest 81, lowest 81, highest 81\./);
   assert.equal(environment.element("#results").hidden, false);
   assert.equal(environment.element("#load-data").disabled, false);
 });

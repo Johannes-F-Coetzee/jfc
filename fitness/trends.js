@@ -846,6 +846,20 @@
   }
 
   // ---------- SVG line chart ----------
+  // Text alternative for a chart: what it plots, the date span, and the latest, lowest and highest values.
+  function describeChart(points, metricDefinition) {
+    const values = points.map(point => point.value);
+    const earliest = points[0].date;
+    const latest = points[points.length - 1].date;
+    const span = earliest === latest ? `on ${earliest}` : `from ${earliest} to ${latest}`;
+    const count = `${points.length} data point${points.length === 1 ? "" : "s"}`;
+
+    return `${metricDefinition.label} over time: ${count} ${span}. ` +
+      `Latest ${metricDefinition.format(points[points.length - 1].value)}, ` +
+      `lowest ${metricDefinition.format(Math.min(...values))}, ` +
+      `highest ${metricDefinition.format(Math.max(...values))}.`;
+  }
+
   function lineChart(points, metricDefinition) {
     if (!points.length) {
       return html`<p class="muted">No data for this metric.</p>`;
@@ -930,7 +944,9 @@
       </circle>`;
     });
 
-    return html`<svg viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${metricDefinition.label} over time">
+    const chartSummary = describeChart(points, metricDefinition);
+
+    return html`<svg viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${chartSummary}">
       ${gridLines}${dateLabels}<path d="${linePath}" class="line"/>${chartDots}</svg>`;
   }
 

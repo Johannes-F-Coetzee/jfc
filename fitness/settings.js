@@ -58,6 +58,7 @@
       </g>
     </svg>`;
     favicon.href = `data:image/svg+xml,${encodeURIComponent(image)}`;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", background);
   }
 
   window.WorkoutSettings = {

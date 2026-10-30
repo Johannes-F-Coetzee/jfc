@@ -14,3 +14,12 @@ The Fitness HTML pages load their scripts, stylesheet, and favicon with plain ta
 Google Identity load failures are shown in the sign-in view. No credentials or access tokens belong in configuration files, exported routines, or commits.
 
 Sign-out clears the active page session even if browser session storage is unavailable. If saved session data cannot be removed, the sign-in view warns you to close the tab to end the saved session.
+
+## Offline support and installing
+
+The fitness pages are installable (`manifest.webmanifest`, icons in `fitness/icons/`) and load offline through the service worker in [`sw.js`](../sw.js), registered by [`pwa.js`](../pwa.js). Registration needs HTTPS or `localhost`.
+
+- Same-origin GET requests are **network-first**: online, the newest files are used and the cache is refreshed; offline, the last good copy is served. Pages fall back to the cached Log page when a URL was never cached.
+- The service worker never touches cross-origin requests (Google sign-in, Forms API reads, form POSTs) or non-GET requests, so drafts, the submission queue and retries behave exactly as before. Signing in and reading Forms data still require a connection; a signed-in session restored from session storage lets you keep logging, and queued submissions send once you are back online.
+- After adding a page or script, list it in `APP_SHELL` in `sw.js`; `tests/pwa.test.cjs` fails if a page loads something that is not precached. Bump `CACHE_NAME` to drop old caches.
+- Charts expose a text alternative (`role="img"` with an `aria-label` giving the metric, date span, latest, lowest and highest values); the data tables below them hold the full values.

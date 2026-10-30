@@ -5,6 +5,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fitness Tracker</title>
+  <meta name="theme-color" content="#2b1d1c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <script>
     const assetCacheVersion = Math.floor(Date.now() / (5 * 60 * 1000));
     const versionedScript = (path, defer = false) =>
@@ -16,6 +19,7 @@
       `<link rel="stylesheet" href="styles.css?v=${assetCacheVersion}">`,
       versionedScript("config.js"),
       versionedScript("shared-header.js", true),
+      versionedScript("pwa.js", true),
       versionedScript("utilities.js", true),
       versionedScript("auth.js", true),
       versionedScript("google-forms.js", true),
