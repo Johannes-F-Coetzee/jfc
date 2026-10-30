@@ -1374,3 +1374,35 @@ tbody tr:hover {
   }
 
 }
+
+.offline-banner {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.offline-banner[hidden] {
+  display: none;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

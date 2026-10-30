@@ -293,3 +293,24 @@ test("setup creates separate log and configuration forms with all required entry
   assert.equal(configuration.actionUrl, "https://docs.google.com/forms/d/e/test/formResponse");
   assert.ok(snippets.some(message => message.includes("\nform: ")));
 });
+
+test("a damaged pending-save entry is ignored and the save still completes", async () => {
+  const environment = createEnvironment();
+  environment.storage.set(`workout.pendingConfiguration:current@example.com:${ROUTINE.name.toLowerCase()}`, "{not json");
+  const catalog = await environment.context.WorkoutRoutines.save(ROUTINE, 270);
+
+  assert.ok(catalog.routines.has(ROUTINE.name));
+});
+
+test("saving stops with a clear error when the signed-in account changes during the read", async () => {
+  const environment = createEnvironment();
+  const originalLoad = environment.context.WorkoutAuth.getFormsAccessToken;
+  environment.context.WorkoutAuth.getFormsAccessToken = async () => {
+    environment.context.WorkoutAuth.user = { email: "someone-else@example.com" };
+
+    return originalLoad();
+  };
+
+  await assert.rejects(environment.context.WorkoutRoutines.save(ROUTINE, 270), /signed-in account changed/);
+  assert.equal(environment.posts, 0);
+});

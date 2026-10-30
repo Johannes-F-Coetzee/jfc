@@ -42,7 +42,7 @@ Static GitHub Pages site.
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), configure the OAuth consent screen, then go to **Create credentials → OAuth client ID → Web application**.
    - Under *Authorized JavaScript origins*, add `https://johannes-f-coetzee.github.io` (and both `http://localhost` and `http://localhost:8000` for local testing).
    - Put the client ID in `googleClientId` in [`fitness/config.js`](fitness/config.js).
-   - Optionally, list permitted accounts in `allowedEmails`.
+   - Optionally, list permitted accounts in `allowedEmails`. This only hides the interface from other accounts; it is not access control (see *Security notes*).
 
 4. **Enable configuration loading and the trends page**
    - Set `form.formId` in [`fitness/config.js`](fitness/config.js). This is the ID in the form **editor** URL (`docs.google.com/forms/d/<formId>/edit`), not the `/d/e/...` published ID. `create-form.gs` logs it for you.
@@ -54,6 +54,12 @@ Static GitHub Pages site.
 
 Local testing: `python -m http.server 8000`, then open <http://localhost:8000/fitness/>. Use an HTTP origin authorized for the OAuth client rather than opening the page directly with `file://`.
 
+Style checks (Node.js, no dependencies): `npm run lint`. Lint plus every regression test: `npm run check`.
+
+Offline support: [`fitness/sw.js`](fitness/sw.js) caches the app shell. **Bump `CACHE_VERSION` in `sw.js` whenever you add, remove or rename a page or script**, and keep its `APP_SHELL` list in sync (a test checks this). Pages load their scripts with plain `<script>` tags; the service worker revalidates every request, so a deploy is picked up as soon as the device is online.
+
+Local data: the Log page keeps the draft workout, unsent sets and recent workouts in this browser. Use **Export my data** and **Import data** under *Recent workouts* to move them between devices or keep a copy. Exports belong to one account and can only be imported by that account.
+
 Configuration regression tests (Node.js): `node --test fitness/tests/routines.test.cjs`.
 Plan snapshot regression tests (Node.js): `node --test fitness/tests/plans.test.cjs`.
 Theme/settings regression tests (Node.js): `node --test fitness/tests/settings.test.cjs`.
@@ -62,5 +68,9 @@ Google authentication and Forms integration regression tests (Node.js): `node --
 All fitness regression tests (Node.js): `npm test` (or `node --test fitness/tests`).
 
 ### Security notes
+
+- `allowedEmails` is enforced in the browser only. Anyone can read the page source, so it is a convenience filter, not a security boundary. The real boundary is who has edit access to the Google Forms.
+- The Google Forms access token is kept in `sessionStorage` for up to about 55 minutes. Script injection on this origin could read it, so every page ships a Content-Security-Policy (`<meta http-equiv>`) that only allows this site's scripts plus Google Identity, and HTML built from data is escaped through `WorkoutUtilities`. If you add a new third-party host (analytics, fonts, a CDN), add it to the policy in all four pages.
+- A completed form submission is not a confirmed save. Google Forms replies opaquely to the browser, so "sent" means the request left this device. Routine and plan saves read their data back to confirm; for workout logs, check the Trends page.
 
 GitHub Pages is static hosting, so sign-in gates only the user interface. All Google Forms' `formResponse` URLs are public in the page source, and anyone who finds them could submit data directly. Share form-edit access only with trusted tracker users, keep the response spreadsheets private, and treat the `email` columns as claimed attribution, not proof of who logged or saved a workout or measurement.

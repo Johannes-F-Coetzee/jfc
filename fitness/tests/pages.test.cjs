@@ -8,7 +8,7 @@ const PAGES = ["index.html", "track.html", "plan.html", "trends.html"];
 const SHARED_HEADER = readSource("shared-header.js");
 
 const idsIn = markup => [...markup.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
-const scriptsOf = markup => [...markup.matchAll(/versionedScript\("([^"]+)"/g)].map(match => match[1]);
+const scriptsOf = markup => [...markup.matchAll(/<script src="([^"]+)"/g)].map(match => match[1]);
 
 // Ids that scripts look up but that are created at run time rather than written in the HTML.
 const DYNAMIC_IDS = new Set([]);

@@ -43,3 +43,7 @@ The legacy routines file is no longer a data source. To migrate an existing rout
 ```
 
 `measure` is either `reps` or `time`. Each set may set `reps` (for reps), `durationSeconds` (for time) and an optional `weightKg`.
+
+## Local data export and import
+
+**Export my data** (under *Recent workouts*) downloads this account's draft workout, unsent sets and recent workouts as JSON; **Import data** merges such a file back in (existing entries win, duplicates are skipped, the draft is only restored when none exists). Files from another account are rejected. Unsent sets are stored on this device only, and a full or blocked browser storage is reported instead of silently losing the workout.

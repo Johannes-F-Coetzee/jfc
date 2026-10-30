@@ -10,6 +10,35 @@
     "measure (reps/time)": "measure", "reps": "reps", "duration (seconds)": "durationSeconds",
     "weight (kg)": "weightKg"
   };
+  // A damaged or unreadable pending entry is ignored so a save can still start fresh.
+  function readPendingSave(storageKey) {
+    try {
+      const pending = JSON.parse(localStorage.getItem(storageKey) || "null");
+
+      return pending && typeof pending === "object" ? pending : null;
+    } catch (error) {
+      console.error("Could not read the pending configuration save.", error);
+
+      return null;
+    }
+  }
+
+  function writePendingSave(storageKey, pending) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(pending));
+    } catch (error) {
+      console.error("Could not remember the pending configuration save on this device.", error);
+    }
+  }
+
+  function clearPendingSave(storageKey) {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      console.error("Could not clear the pending configuration save.", error);
+    }
+  }
+
   function isConfigured() {
     return Boolean(CONFIGURATION.formId) &&
       WorkoutForms.hasSubmissionConfiguration(CONFIGURATION, {
@@ -181,10 +210,16 @@
     routine = { ...routine, name: routine.name.trim() };
     const fingerprint = JSON.stringify({ routine, estimatedSeconds, email });
     const pendingStorageKey = `${PENDING_STORAGE_KEY}:${email}:${routine.name.toLowerCase()}`;
-    const storedPending = localStorage.getItem(pendingStorageKey);
-    const pending = storedPending ? JSON.parse(storedPending) : null;
-    const configurationId = pending?.fingerprint === fingerprint ? pending.configurationId : crypto.randomUUID();
+    const pending = readPendingSave(pendingStorageKey);
+    const configurationId = pending?.fingerprint === fingerprint && typeof pending.configurationId === "string" &&
+      pending.configurationId ? pending.configurationId : crypto.randomUUID();
+    const assertSignedInAs = () => {
+      if (!WorkoutAuth.user || WorkoutAuth.user.email !== email) {
+        throw new Error("The signed-in account changed.");
+      }
+    };
     const catalog = await load();
+    assertSignedInAs();
     const existing = catalog.names.get(routine.name.toLowerCase());
 
     if (existing && [...existing].some(identifier => identifier !== configurationId)) {
@@ -200,15 +235,13 @@
       }));
     });
     assembleRoutine(rows);
-    localStorage.setItem(pendingStorageKey, JSON.stringify({ fingerprint, configurationId }));
+    writePendingSave(pendingStorageKey, { fingerprint, configurationId });
     const confirmedSets = new Set(catalog.rows.filter(row => row.configurationId === configurationId)
       .map(row => `${row.exerciseOrder}:${row.setNumber}`));
 
     try {
       for (const row of rows) {
-        if (!WorkoutAuth.user || WorkoutAuth.user.email !== email) {
-          throw new Error("The signed-in account changed.");
-        }
+        assertSignedInAs();
 
         if (!confirmedSets.has(`${row.exerciseOrder}:${row.setNumber}`)) {
           await WorkoutForms.postRow(CONFIGURATION, row);
@@ -218,10 +251,11 @@
       // Public form POSTs cannot confirm success. Only report success after reading every set back.
       for (let attempt = 0; attempt < 3; attempt += 1) {
         const updated = await load();
+        assertSignedInAs();
         const saved = updated.routines.get(routine.name);
 
         if (saved?.configurationId === configurationId) {
-          localStorage.removeItem(pendingStorageKey);
+          clearPendingSave(pendingStorageKey);
 
           return updated;
         }

@@ -160,7 +160,7 @@ test("reports Google Identity script errors and timeouts on the login view", asy
 test("all fitness pages let the shared auth module load Google Identity", () => {
   for (const filename of ["index.html", "track.html", "trends.html"]) {
     const markup = readFileSync(path.join(__dirname, "..", filename), "utf8");
-    assert.match(markup, /versionedScript\("auth\.js", true\)/);
+    assert.match(markup, /<script src="auth\.js" defer><\/script>/);
     assert.doesNotMatch(markup, /src="https:\/\/accounts\.google\.com\/gsi\/client"/);
   }
 });
@@ -195,7 +195,7 @@ test("sign-in decodes Unicode names and keeps the existing session shape", () =>
 test("rejects malformed, expired, wrong-audience and disallowed sign-in credentials", () => {
   for (const overrides of [
     { iss: "https://example.test" }, { aud: "other-client" },
-    { email_verified: false }, { exp: 1 }, { email: "other@example.com" }
+    { email_verified: false }, { email_verified: undefined }, { exp: 1 }, { email: "other@example.com" }
   ]) {
     const environment = createEnvironment({ allowedEmails: ["current@example.com"] });
     environment.init();

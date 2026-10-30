@@ -11,6 +11,9 @@
     queue: "workout.queue",
     history: "workout.history"
   };
+  const HISTORY_LIMIT = 20;
+  const LOCAL_DATA_VERSION = 1;
+  const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
   const PERCEIVED_EXERTION_LABELS = {
     1: "Very light", 2: "Light", 3: "Light", 4: "Moderate", 5: "Moderate",
     6: "Moderate+", 7: "Hard", 8: "Hard+", 9: "Very hard", 10: "Max effort"
@@ -37,8 +40,17 @@
     }
   }
 
+  // Returns whether the value was stored; a full or blocked storage never throws into the caller.
   function writeJson(storage, key, value) {
-    storage.setItem(key, JSON.stringify(value));
+    try {
+      storage.setItem(key, JSON.stringify(value));
+
+      return true;
+    } catch (error) {
+      console.error(`Could not save ${key} on this device.`, error);
+
+      return false;
+    }
   }
 
   // ---------- configuration checks ----------
@@ -482,6 +494,97 @@
       .map(exerciseName => html`<option value="${exerciseName}"></option>`));
   }
 
+  // ---------- local data export and import ----------
+  function isPlainObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  function isValidQueueRow(row, email) {
+    return isPlainObject(row) && isOwnedBy(row, email) && typeof row.id === "string" && row.id !== "" &&
+      typeof row.sessionId === "string" && DATE_PATTERN.test(row.date) && typeof row.exercise === "string";
+  }
+
+  function isValidHistoryEntry(entry) {
+    return isPlainObject(entry) && typeof entry.sessionId === "string" && DATE_PATTERN.test(entry.date) &&
+      Array.isArray(entry.exercises) && entry.exercises.every(name => typeof name === "string");
+  }
+
+  // Validates an exported file and keeps only what belongs to this account; throws a readable message otherwise.
+  function parseLocalDataExport(text, email) {
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("That file is not valid JSON.");
+    }
+
+    if (!isPlainObject(data) || data.version !== LOCAL_DATA_VERSION || data.email !== email) {
+      throw new Error("That file is not a workout export for this account.");
+    }
+
+    return {
+      queue: (Array.isArray(data.queue) ? data.queue : []).filter(row => isValidQueueRow(row, email)),
+      history: (Array.isArray(data.history) ? data.history : []).filter(isValidHistoryEntry),
+      draft: isPlainObject(data.draft) && Array.isArray(data.draft.exercises) ? data.draft : null
+    };
+  }
+
+  function mergeById(existing, incoming, getId) {
+    const knownIds = new Set(existing.map(getId));
+
+    return existing.concat(incoming.filter(item => !knownIds.has(getId(item))));
+  }
+
+  function downloadJson(filename, value) {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2) + "\n"], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportLocalData() {
+    downloadJson(`workout-data-${WORKOUT_UTILITIES.getLocalDateString()}.json`, {
+      version: LOCAL_DATA_VERSION,
+      email: currentUser.email,
+      exportedAt: new Date().toISOString(),
+      draft: readJson(localStorage, STORAGE_KEYS.draft, null),
+      queue: readQueue().filter(row => isOwnedBy(row, currentUser.email)),
+      history: readJson(localStorage, STORAGE_KEYS.history, [])
+    });
+    setStatus("Exported this device's workout data.", "ok");
+  }
+
+  async function importLocalData(file) {
+    try {
+      const imported = parseLocalDataExport(await file.text(), currentUser.email);
+      const history = mergeById(readJson(localStorage, STORAGE_KEYS.history, []), imported.history,
+        entry => entry.sessionId)
+        .sort((first, second) => second.date.localeCompare(first.date))
+        .slice(0, HISTORY_LIMIT);
+      const queue = mergeById(readQueue(), imported.queue, row => row.id);
+
+      if (!writeQueue(queue) || !writeJson(localStorage, STORAGE_KEYS.history, history)) {
+        throw new Error("This device could not save the imported data (storage is full or blocked).");
+      }
+
+      if (imported.draft && !readJson(localStorage, STORAGE_KEYS.draft, null)) {
+        writeJson(localStorage, STORAGE_KEYS.draft, imported.draft);
+        renderWorkout(imported.draft);
+      }
+
+      renderHistory();
+      updateQueueUi();
+      setStatus(`Imported ${imported.history.length} workouts and ${imported.queue.length} unsent sets.`, "ok");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  }
+
   // ---------- status ----------
   function setStatus(message, kind = "") {
     SUBMISSION_STATUS.set($("#status"), message, kind);
@@ -493,14 +596,20 @@
   }
 
   function writeQueue(queue) {
-    writeJson(localStorage, STORAGE_KEYS.queue, queue);
+    return writeJson(localStorage, STORAGE_KEYS.queue, queue);
+  }
+
+  // Queued rows carry their owner's email, so one account never sends or sees another account's sets.
+  function isOwnedBy(row, email) {
+    return Boolean(email) && row?.email === email;
   }
 
   function updateQueueUi() {
-    const count = readQueue().length;
+    const count = readQueue().filter(row => isOwnedBy(row, currentUser?.email)).length;
     $("#queue-box").hidden = count === 0;
     $("#queue-text").textContent = `${count} set${count === 1 ? "" : "s"} waiting to be sent.`;
     $("#retry-queue").disabled = flushing || !currentUser || !hasFormConfig();
+    window.WorkoutConnectivity?.refresh();
   }
 
   async function postToForm(row) {
@@ -517,18 +626,28 @@
     }
 
     if (flushing || !hasFormConfig()) {
-      return readQueue().length === 0;
+      return !readQueue().some(row => isOwnedBy(row, currentUser.email));
     }
 
+    const ownerEmail = currentUser.email;
     flushing = true;
     updateQueueUi();
 
     try {
       let next;
 
-      while ((next = readQueue()[0])) {
+      while ((next = readQueue().find(row => isOwnedBy(row, ownerEmail)))) {
+        if (currentUser?.email !== ownerEmail) {
+          return false;
+        }
+
         await postToForm(next);
-        writeQueue(readQueue().filter(queueRow => queueRow.id !== next.id));
+
+        // Stop if the sent row cannot be removed, otherwise it would be sent again.
+        if (!writeQueue(readQueue().filter(queueRow => queueRow.id !== next.id))) {
+          throw new Error("Could not update the saved queue on this device.");
+        }
+
         updateQueueUi();
       }
 
@@ -544,7 +663,8 @@
   }
 
   async function retryQueue() {
-    if (!currentUser || !hasFormConfig() || flushing || !readQueue().length) {
+    if (!currentUser || !hasFormConfig() || flushing ||
+        !readQueue().some(row => isOwnedBy(row, currentUser.email))) {
       return;
     }
 
@@ -638,7 +758,13 @@
     }
 
     const { sessionId, rows } = buildRows(workout);
-    writeQueue(readQueue().concat(rows));
+    if (!writeQueue(readQueue().concat(rows))) {
+      setStatus("This device could not save the workout (storage is full or blocked), so nothing was sent. " +
+        "Free some space or export your data, then try again.", "error");
+
+      return;
+    }
+
     updateQueueUi();
     const history = readJson(localStorage, STORAGE_KEYS.history, []);
     const perceivedExertionValues = rows.map(row => row.rpe);
@@ -649,7 +775,7 @@
       exercises: workout.exercises.map(exercise => `${exercise.name} ×${exercise.sets.length}`),
       avgRpe: Math.round((perceivedExertionValues.reduce((total, value) => total + value, 0) / perceivedExertionValues.length) * 10) / 10
     });
-    writeJson(localStorage, STORAGE_KEYS.history, history.slice(0, 20));
+    writeJson(localStorage, STORAGE_KEYS.history, history.slice(0, HISTORY_LIMIT));
     $("#submit-workout").disabled = true;
     setStatus(SUBMISSION_STATUS.submitting("workout"));
     const sent = await flushQueue();
@@ -864,6 +990,16 @@
     });
 
     $("#retry-queue").addEventListener("click", retryQueue);
+    $("#export-local-data").addEventListener("click", exportLocalData);
+    $("#import-local-data").addEventListener("click", () => $("#import-local-file").click());
+    $("#import-local-file").addEventListener("change", async event => {
+      const [file] = event.target.files;
+      event.target.value = "";
+
+      if (file) {
+        await importLocalData(file);
+      }
+    });
 
     window.addEventListener("online", retryQueue);
   }

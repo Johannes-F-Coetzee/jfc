@@ -20,6 +20,35 @@
     "email", "planId", "planName", "duration", "durationUnit", "startDate", "totalRoutines"
   ];
 
+  // A damaged or unreadable pending entry is ignored so a save can still start fresh.
+  function readPendingSave(storageKey) {
+    try {
+      const pending = JSON.parse(localStorage.getItem(storageKey) || "null");
+
+      return pending && typeof pending === "object" ? pending : null;
+    } catch (error) {
+      console.error("Could not read the pending plan save.", error);
+
+      return null;
+    }
+  }
+
+  function writePendingSave(storageKey, pending) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(pending));
+    } catch (error) {
+      console.error("Could not remember the pending plan save on this device.", error);
+    }
+  }
+
+  function clearPendingSave(storageKey) {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (error) {
+      console.error("Could not clear the pending plan save.", error);
+    }
+  }
+
   function isConfigured() {
     return Boolean(CONFIGURATION.formId) && WorkoutForms.hasSubmissionConfiguration(CONFIGURATION, {
       requiredFields: REQUIRED_FIELDS, uniqueEntries: true
@@ -219,8 +248,7 @@
     const expectedRows = planRows(plan, owner.email, "");
     const fingerprint = JSON.stringify(expectedRows);
     const pendingKey = `${PENDING_STORAGE_KEY}:${owner.email}:${plan.name.trim().toLowerCase()}`;
-    const storedPending = localStorage.getItem(pendingKey);
-    const pending = storedPending ? JSON.parse(storedPending) : null;
+    const pending = readPendingSave(pendingKey);
     const planId = pending?.fingerprint === fingerprint ? pending.planId : crypto.randomUUID();
 
     if (typeof planId !== "string" || !planId) {
@@ -259,7 +287,7 @@
     }
 
     const confirmed = assertMatchingRows(catalog);
-    localStorage.setItem(pendingKey, JSON.stringify({ fingerprint, planId }));
+    writePendingSave(pendingKey, { fingerprint, planId });
 
     try {
       for (const row of rows) {
@@ -276,7 +304,7 @@
         assertMatchingRows(updated);
 
         if (updated.plans.has(planId)) {
-          localStorage.removeItem(pendingKey);
+          clearPendingSave(pendingKey);
 
           return updated;
         }

@@ -5,29 +5,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fitness Tracker</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://forms.googleapis.com https://docs.google.com https://accounts.google.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; form-action https://docs.google.com; base-uri 'self'; object-src 'none'">
   <meta name="theme-color" content="#2b1d1c">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <script>
-    const assetCacheVersion = Math.floor(Date.now() / (5 * 60 * 1000));
-    const versionedScript = (path, defer = false) =>
-      `<script src="${path}?v=${assetCacheVersion}"${defer ? " defer" : ""}><\/script>`;
-
-    document.write([
-      `<link rel="icon" href="excersise_favicon.svg?v=${assetCacheVersion}" type="image/svg+xml">`,
-      versionedScript("settings.js"),
-      `<link rel="stylesheet" href="styles.css?v=${assetCacheVersion}">`,
-      versionedScript("config.js"),
-      versionedScript("shared-header.js", true),
-      versionedScript("pwa.js", true),
-      versionedScript("utilities.js", true),
-      versionedScript("auth.js", true),
-      versionedScript("google-forms.js", true),
-      versionedScript("submission-status.js", true),
-      versionedScript("routines.js", true),
-      versionedScript("app.js", true)
-    ].join("\n"));
-  </script>
+  <link rel="icon" href="exercise_favicon.svg" type="image/svg+xml">
+  <script src="settings.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="shared-header.js" defer></script>
+  <script src="pwa.js" defer></script>
+  <script src="connectivity.js" defer></script>
+  <script src="utilities.js" defer></script>
+  <script src="auth.js" defer></script>
+  <script src="google-forms.js" defer></script>
+  <script src="submission-status.js" defer></script>
+  <script src="routines.js" defer></script>
+  <script src="app.js" defer></script>
 </head>
 
 <body>
@@ -103,6 +97,11 @@
       <section class="card">
         <h2>Recent workouts <small>(this device)</small></h2>
         <ul id="history" class="history"></ul>
+        <div class="row-actions">
+          <button type="button" id="export-local-data" class="btn ghost small">Export my data</button>
+          <button type="button" id="import-local-data" class="btn ghost small">Import data</button>
+          <input type="file" id="import-local-file" accept="application/json,.json" hidden aria-label="Choose a workout data file to import">
+        </div>
       </section>
     </section>
   </main>

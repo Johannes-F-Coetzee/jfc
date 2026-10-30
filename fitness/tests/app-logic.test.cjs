@@ -6,16 +6,26 @@ const { loadInternals, loadUtilities, readSource } = require("./helpers.cjs");
 const plain = value => JSON.parse(JSON.stringify(value));
 const NAMES = [
   "parseDuration", "formatDuration", "estimateSeconds", "formatEstimate", "validate", "buildRows",
-  "routineTemplate", "flushQueue", "readQueue", "writeQueue", "readJson", "showTracker"
+  "routineTemplate", "flushQueue", "readQueue", "writeQueue", "readJson", "writeJson", "showTracker",
+  "parseLocalDataExport", "mergeById", "isOwnedBy"
 ];
 
+const failWrites = { value: false };
+
 function loadApp({ storage = new Map(), post = async () => {}, configured = true } = {}) {
+  failWrites.value = false;
   const window = loadUtilities();
   runInNewContext(readSource("submission-status.js"), { window });
   window.WORKOUT_CONFIG = { form: {} };
   const localStorage = {
     getItem: key => storage.get(key) ?? null,
-    setItem: (key, value) => storage.set(key, String(value))
+    setItem: (key, value) => {
+      if (failWrites.value) {
+        throw new Error("QuotaExceededError");
+      }
+
+      storage.set(key, String(value));
+    }
   };
   const posted = [];
   const app = loadInternals("app.js", NAMES, {
@@ -29,6 +39,8 @@ function loadApp({ storage = new Map(), post = async () => {}, configured = true
 
   return { app, storage, posted };
 }
+
+const ownedRows = (...ids) => ids.map(id => ({ id, email: "a@example.com" }));
 
 function signIn(app, email = "a@example.com") {
   try {
@@ -150,7 +162,7 @@ const { settle } = require("./helpers.cjs");
 
 // Signing in starts a flush of anything queued, so these tests sign in and let that flush finish.
 test("signing in sends the offline queue in order and removes each row only after it was sent", async () => {
-  const queue = [{ id: "r1" }, { id: "r2" }, { id: "r3" }];
+  const queue = ownedRows("r1", "r2", "r3");
   const { app, storage, posted } = loadApp({ storage: new Map([["workout.queue", JSON.stringify(queue)]]) });
   signIn(app);
   await settle();
@@ -160,7 +172,7 @@ test("signing in sends the offline queue in order and removes each row only afte
 });
 
 test("a failed send stops the queue, keeps the failed and later rows, and a retry resumes from there", async () => {
-  const queue = [{ id: "r1" }, { id: "r2" }, { id: "r3" }];
+  const queue = ownedRows("r1", "r2", "r3");
   let failOn = "r2";
   const { app, storage, posted } = loadApp({
     storage: new Map([["workout.queue", JSON.stringify(queue)]]),
@@ -178,7 +190,7 @@ test("a failed send stops the queue, keeps the failed and later rows, and a retr
 });
 
 test("the queue is not sent when signed out or when the form is not configured", async () => {
-  const queue = JSON.stringify([{ id: "r1" }]);
+  const queue = JSON.stringify(ownedRows("r1"));
   const signedOut = loadApp({ storage: new Map([["workout.queue", queue]]) });
   const unconfigured = loadApp({ storage: new Map([["workout.queue", queue]]), configured: false });
   signIn(unconfigured.app);
@@ -189,4 +201,64 @@ test("the queue is not sent when signed out or when the form is not configured",
   assert.deepEqual([...signedOut.posted, ...unconfigured.posted], []);
   assert.equal(JSON.parse(signedOut.storage.get("workout.queue")).length, 1);
   assert.equal(JSON.parse(unconfigured.storage.get("workout.queue")).length, 1);
+});
+
+test("only the signed-in account's queued sets are sent; another account's rows stay untouched", async () => {
+  const queue = [
+    { id: "mine-1", email: "a@example.com" },
+    { id: "theirs-1", email: "b@example.com" },
+    { id: "mine-2", email: "a@example.com" }
+  ];
+  const { app, storage, posted } = loadApp({ storage: new Map([["workout.queue", JSON.stringify(queue)]]) });
+  signIn(app, "a@example.com");
+  await settle();
+
+  assert.deepEqual(posted, ["mine-1", "mine-2"]);
+  assert.deepEqual(JSON.parse(storage.get("workout.queue")).map(row => row.id), ["theirs-1"]);
+});
+
+test("a queue that cannot be rewritten stops after one send instead of resending rows", async () => {
+  const { app, storage, posted } = loadApp({ storage: new Map([["workout.queue", JSON.stringify(ownedRows("r1", "r2"))]]) });
+  failWrites.value = true;
+  signIn(app);
+  await settle();
+
+  assert.equal(app.writeQueue([]), false);
+  assert.equal(app.writeJson({ setItem() { throw new Error("blocked"); } }, "key", {}), false);
+  assert.deepEqual(posted, ["r1"]);
+  assert.equal(JSON.parse(storage.get("workout.queue")).length, 2);
+});
+
+const exportFile = overrides => JSON.stringify({
+  version: 1, email: "a@example.com", draft: { exercises: [] },
+  queue: [{ id: "r1", email: "a@example.com", sessionId: "s", date: "2026-10-30", exercise: "Row" }],
+  history: [{ sessionId: "s", date: "2026-10-30", exercises: ["Row ×1"] }],
+  ...overrides
+});
+
+test("an exported file is only accepted for the account that made it and drops malformed entries", () => {
+  const { parseLocalDataExport } = loadApp().app;
+  const parsed = plain(parseLocalDataExport(exportFile({
+    queue: [
+      { id: "ok", email: "a@example.com", sessionId: "s", date: "2026-10-30", exercise: "Row" },
+      { id: "other", email: "b@example.com", sessionId: "s", date: "2026-10-30", exercise: "Row" },
+      { id: "bad-date", email: "a@example.com", sessionId: "s", date: "yesterday", exercise: "Row" },
+      "junk"
+    ],
+    history: [{ sessionId: "s", date: "2026-10-30", exercises: [1] }, { nonsense: true }]
+  }), "a@example.com"));
+
+  assert.deepEqual(parsed.queue.map(row => row.id), ["ok"]);
+  assert.deepEqual(parsed.history, []);
+  assert.deepEqual(parsed.draft, { exercises: [] });
+  assert.throws(() => parseLocalDataExport(exportFile(), "b@example.com"), /not a workout export for this account/);
+  assert.throws(() => parseLocalDataExport(exportFile({ version: 2 }), "a@example.com"), /not a workout export/);
+  assert.throws(() => parseLocalDataExport("{nope", "a@example.com"), /not valid JSON/);
+});
+
+test("merging keeps existing items first and skips ones whose id is already known", () => {
+  const { mergeById } = loadApp().app;
+
+  assert.deepEqual(plain(mergeById([{ id: 1 }, { id: 2 }], [{ id: 2 }, { id: 3 }], item => item.id)),
+    [{ id: 1 }, { id: 2 }, { id: 3 }]);
 });

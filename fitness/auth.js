@@ -96,7 +96,7 @@
       return;
     }
 
-    if (!payload.email || payload.email_verified === false) {
+    if (!payload.email || payload.email_verified !== true) {
       showLoginError("Your Google account email is not verified.");
 
       return;

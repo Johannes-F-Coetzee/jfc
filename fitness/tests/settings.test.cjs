@@ -11,20 +11,6 @@ const themes = [
 ];
 const stylesheet = readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
 
-function renderAssets(filename, timestamp) {
-  const markup = readFileSync(path.join(__dirname, "..", filename), "utf8");
-  const bootstrap = /<script>\s*([\s\S]*?)<\/script>/.exec(markup);
-  const writtenMarkup = [];
-
-  assert.ok(bootstrap, `${filename}: inline asset bootstrap`);
-  runInNewContext(bootstrap[1], {
-    Date: { now: () => timestamp },
-    document: { write: value => writtenMarkup.push(value) }
-  });
-
-  return writtenMarkup.join("");
-}
-
 function themeColors(theme) {
   const colors = {};
   const selectors = [":root"];
@@ -64,7 +50,7 @@ function createEnvironment(savedTheme = null, options = {}) {
     addEventListener: (name, callback) => { changes[name] = callback; }
   };
   const status = { textContent: "" };
-  const favicon = { href: "excersise_favicon.svg" };
+  const favicon = { href: "exercise_favicon.svg" };
   const unitsChanges = {};
   const unitsSelector = {
     value: "",
@@ -215,29 +201,21 @@ test("Escape closes settings and restores focus; outside clicks dismiss it", () 
 });
 
 test("fitness pages load the shared header and keep page-specific navigation", () => {
-  const timestamp = 1740000000000;
-  const expectedVersion = Math.floor(timestamp / (5 * 60 * 1000));
   const sharedHeader = readFileSync(path.join(__dirname, "..", "shared-header.js"), "utf8");
 
   for (const filename of ["index.html", "trends.html", "track.html"]) {
     const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
     const pageScript = filename === "index.html" ? "app.js" : filename.replace(".html", ".js");
     const pageName = filename === "index.html" ? "log" : filename.replace(".html", "");
-    const assets = renderAssets(filename, timestamp);
-    const assetUrls = [...assets.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]);
-    const expectedSuffix = `?v=${expectedVersion}`;
-    const sharedHeaderScriptIndex = assets.indexOf(`<script src="shared-header.js${expectedSuffix}" defer></script>`);
-    const utilitiesScriptIndex = assets.indexOf(`<script src="utilities.js${expectedSuffix}" defer></script>`);
+    const scriptIndex = name => html.indexOf(`<script src="${name}" defer></script>`);
 
-    assert.ok(assetUrls.length > 0, `${filename}: generated static asset URLs`);
-    assert.ok(assetUrls.every(url => url.endsWith(expectedSuffix)), `${filename}: shared five-minute version`);
-    assert.ok(assets.indexOf(`<script src="settings.js${expectedSuffix}"></script>`) <
-      assets.indexOf(`<link rel="stylesheet" href="styles.css${expectedSuffix}">`));
-    assert.notEqual(sharedHeaderScriptIndex, -1, `${filename}: shared header script`);
-    assert.ok(sharedHeaderScriptIndex < utilitiesScriptIndex, `${filename}: header before page initialization`);
-    assert.notEqual(utilitiesScriptIndex, -1, `${filename}: shared utilities`);
-    assert.ok(utilitiesScriptIndex < assets.indexOf(`<script src="${pageScript}${expectedSuffix}" defer></script>`));
-    assert.ok(assets.includes(`<link rel="icon" href="excersise_favicon.svg${expectedSuffix}" type="image/svg+xml">`));
+    assert.ok(html.indexOf('<script src="settings.js"></script>') <
+      html.indexOf('<link rel="stylesheet" href="styles.css">'), `${filename}: settings before stylesheet`);
+    assert.notEqual(scriptIndex("shared-header.js"), -1, `${filename}: shared header script`);
+    assert.ok(scriptIndex("shared-header.js") < scriptIndex("utilities.js"), `${filename}: header before page initialization`);
+    assert.notEqual(scriptIndex("utilities.js"), -1, `${filename}: shared utilities`);
+    assert.ok(scriptIndex("utilities.js") < scriptIndex(pageScript));
+    assert.ok(html.includes('<link rel="icon" href="exercise_favicon.svg" type="image/svg+xml">'));
     assert.ok(html.includes(`<header id="fitness-header" class="topbar" data-page="${pageName}"></header>`));
     assert.match(sharedHeader, /<details id="settings-menu"/);
     assert.match(sharedHeader, /<select id="units-select">/);
@@ -252,17 +230,13 @@ test("fitness pages load the shared header and keep page-specific navigation", (
   }
 });
 
-test("asset cache version remains stable within a five-minute window and changes at its boundary", () => {
-  for (const filename of ["index.html", "trends.html", "track.html"]) {
-    const firstInstantInWindow = renderAssets(filename, 300001);
-    const lastInstantInWindow = renderAssets(filename, 599999);
-    const nextWindow = renderAssets(filename, 600000);
-    const versionFrom = markup => /\?v=(\d+)/.exec(markup)?.[1];
+test("pages load their assets with static tags, so no script is written by other script", () => {
+  for (const filename of ["index.html", "trends.html", "track.html", "plan.html"]) {
+    const html = readFileSync(path.join(__dirname, "..", filename), "utf8");
 
-    assert.equal(versionFrom(firstInstantInWindow), "1");
-    assert.equal(versionFrom(lastInstantInWindow), "1");
-    assert.equal(versionFrom(nextWindow), "2");
-    assert.notEqual(versionFrom(firstInstantInWindow), versionFrom(nextWindow));
+    assert.doesNotMatch(html, /document\.write/, filename);
+    assert.doesNotMatch(html, /\?v=/, filename);
+    assert.doesNotMatch(html, /<script>/, `${filename}: no inline scripts`);
   }
 });
 

@@ -6,6 +6,7 @@ const { runInNewContext } = require("node:vm");
 
 const read = filename => readFileSync(path.join(__dirname, "..", filename), "utf8");
 const PAGES = ["index.html", "track.html", "plan.html", "trends.html"];
+const SHELL_ASSET = "https://site.test/fitness/app.js";
 
 test("every fitness page links the manifest, icons and the service worker registration", () => {
   for (const page of PAGES) {
@@ -14,7 +15,7 @@ test("every fitness page links the manifest, icons and the service worker regist
     assert.match(markup, /<link rel="manifest" href="manifest\.webmanifest">/, page);
     assert.match(markup, /<link rel="apple-touch-icon" href="icons\/apple-touch-icon\.png">/, page);
     assert.match(markup, /<meta name="theme-color" content="#[0-9a-fA-F]{6}">/, page);
-    assert.match(markup, /versionedScript\("pwa\.js", true\)/, page);
+    assert.match(markup, /<script src="pwa\.js" defer><\/script>/, page);
   }
 });
 
@@ -40,7 +41,7 @@ test("the service worker precaches every page and script the pages load", () => 
   for (const page of PAGES) {
     assert.ok(precached.has(page), `${page} is precached`);
 
-    for (const script of read(page).matchAll(/versionedScript\("([^"]+)"/g)) {
+    for (const script of read(page).matchAll(/<script src="([^"]+)"/g)) {
       assert.ok(precached.has(script[1]), `${script[1]} (${page}) is precached`);
     }
   }
@@ -128,4 +129,72 @@ test("service worker ignores cross-origin and non-GET requests", async () => {
   assert.equal(await worker.request("https://docs.google.com/forms/d/e/x/formResponse", { method: "POST" }), undefined);
   assert.equal(await worker.request("https://site.test/fitness/app.js", { method: "POST" }), undefined);
   assert.equal(worker.fetched.length, 0);
+});
+
+test("service worker caches only app shell files, so other responses never accumulate", async () => {
+  const worker = createWorker();
+  await worker.request("https://site.test/fitness/routines-backup.json");
+  await worker.request(`${SHELL_ASSET}?v=7`);
+
+  assert.deepEqual([...worker.store.keys()], [SHELL_ASSET]);
+});
+
+test("service worker revalidates with the network and does not take over pages mid-session", () => {
+  const worker = read("sw.js");
+
+  assert.match(worker, /cache: "no-cache"/);
+  assert.doesNotMatch(worker, /skipWaiting|clients\.claim/);
+  assert.match(worker, /CACHE_VERSION = \d+/);
+});
+
+test("every page restricts what it can load with a Content-Security-Policy", () => {
+  for (const page of PAGES) {
+    const policy = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(read(page))?.[1];
+
+    assert.ok(policy, `${page} has a policy`);
+    assert.match(policy, /default-src 'self'/);
+    assert.match(policy, /script-src 'self' https:\/\/accounts\.google\.com(;|$)/);
+    assert.match(policy, /object-src 'none'/);
+    assert.doesNotMatch(policy, /unsafe-eval|script-src[^;]*unsafe-inline/);
+  }
+});
+
+test("the manifest has an id, a maskable icon and page shortcuts", () => {
+  const manifest = JSON.parse(read("manifest.webmanifest"));
+
+  assert.ok(manifest.id);
+  assert.ok(manifest.icons.some(icon => icon.purpose === "maskable"));
+  assert.ok(manifest.shortcuts.length >= 3);
+
+  for (const shortcut of manifest.shortcuts) {
+    assert.ok(PAGES.includes(shortcut.url === "./" ? "index.html" : shortcut.url), shortcut.url);
+  }
+});
+
+test("the offline banner appears offline, counts only the signed-in account's sets and hides when online", () => {
+  const listeners = {};
+  const banner = { hidden: true, textContent: "", setAttribute() {} };
+  const navigator = { onLine: false };
+  const window = {
+    WorkoutAuth: { user: { email: "a@example.com" } },
+    addEventListener: (name, callback) => { listeners[name] = callback; }
+  };
+  runInNewContext(read("connectivity.js"), {
+    window, navigator,
+    document: {
+      createElement: () => banner,
+      addEventListener: (name, callback) => { listeners[name] = callback; },
+      body: { prepend() {} }
+    },
+    localStorage: { getItem: () => JSON.stringify([{ email: "a@example.com" }, { email: "b@example.com" }, { email: "a@example.com" }]) }
+  });
+  listeners.DOMContentLoaded();
+
+  assert.equal(banner.hidden, false);
+  assert.match(banner.textContent, /You are offline.*2 sets are waiting to be sent/);
+
+  navigator.onLine = true;
+  window.WorkoutConnectivity.refresh();
+  assert.equal(banner.hidden, true);
+  assert.equal(banner.textContent, "");
 });

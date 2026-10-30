@@ -3,6 +3,8 @@
   "private": true,
   "description": "Static GitHub Pages site with a fitness tracker. No runtime dependencies.",
   "scripts": {
-    "test": "node --test fitness/tests"
+    "test": "node --test fitness/tests",
+    "lint": "node scripts/lint.cjs",
+    "check": "npm run lint && npm test"
   }
 }

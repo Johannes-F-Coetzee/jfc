@@ -5,6 +5,8 @@ window.WORKOUT_CONFIG = {
   googleClientId: "342022081719-u4gek6jp96tgtegv1ki3jv2qrjnt8p5h.apps.googleusercontent.com",
 
   // Optional allow-list of Google account emails permitted to use the tracker. Empty = any Google account.
+  // Enforced in the browser only: it hides the interface but does not protect data. Access to the Google Forms
+  // (and their response spreadsheets) is the real boundary.
   allowedEmails: [],
 
   // Run createMeasurementsForm in setup/create-form.gs and replace this block with its output.
