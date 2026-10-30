@@ -191,7 +191,7 @@
   function latestMeasurementEntries(rowsToDeduplicate) {
     const latestByUserAndDate = new Map();
     rowsToDeduplicate.filter(measurementRow => measurementRow.date && Object.keys(MEASUREMENT_METRIC_DEFINITIONS)
-      .some(fieldName => measurementRow[fieldName] !== null && measurementRow[fieldName] !== ""))
+      .some(fieldName => measurementRow[fieldName] != null && measurementRow[fieldName] !== ""))
       .forEach(measurementRow => {
         const key = `${measurementRow.email}|${measurementRow.date}`;
         const existingRow = latestByUserAndDate.get(key);
@@ -873,15 +873,20 @@
     const latestDateValue = Math.max(...dateValues);
     const metricValues = points.map(point => point.value);
     const categories = metricDefinition.categories;
-    let minimumMetricValue = categories ? 0.5 : Math.min(0, ...metricValues);
+    let minimumMetricValue = categories ? 0.5 : Math.min(...metricValues);
     let maximumMetricValue = categories ? categories.length + 0.5 : Math.max(...metricValues);
 
-    if (!categories && maximumMetricValue === minimumMetricValue) {
-      maximumMetricValue = minimumMetricValue + 1;
-    }
-
     if (!categories) {
-      maximumMetricValue += (maximumMetricValue - minimumMetricValue) * 0.1;
+      // Pad the axis by 10% of the data range above and below; a flat series pads by 10% of its value.
+      const padding = (maximumMetricValue - minimumMetricValue) * 0.1 ||
+        Math.abs(maximumMetricValue) * 0.1 || 1;
+      const dataIsNonNegative = minimumMetricValue >= 0;
+      minimumMetricValue -= padding;
+      maximumMetricValue += padding;
+
+      if (dataIsNonNegative) {
+        minimumMetricValue = Math.max(0, minimumMetricValue);
+      }
     }
     const getHorizontalPosition = dateValue => chartPadding.left +
       (latestDateValue === earliestDateValue

@@ -51,4 +51,11 @@ test("html escapes interpolations, keeps nested html, and joins arrays", () => {
   const element = {};
   setHtml(element, html`<i>${"<"}</i>`);
   assert.equal(element.innerHTML, "<i>&lt;</i>");
+
+  setHtml(element, ["a", "<b>"].map(item => html`<li>${item}</li>`));
+  assert.equal(element.innerHTML, "<li>a</li><li>&lt;b&gt;</li>");
+  setHtml(element, "");
+  assert.equal(element.innerHTML, "");
+  setHtml(element, "<script>");
+  assert.equal(element.innerHTML, "&lt;script&gt;");
 });

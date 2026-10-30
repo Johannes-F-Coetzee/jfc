@@ -52,9 +52,9 @@
           <div class="field">
             <label id="routine-label" for="routine-name">Routine</label>
             <span class="routine-picker">
-              <select id="routine-select" hidden></select>
+              <select id="routine-select" aria-labelledby="routine-label" hidden></select>
               <span id="routine-capture" class="routine-capture">
-                <input id="routine-name" placeholder="e.g. Upper body A" autocomplete="off">
+                <input id="routine-name" aria-labelledby="routine-label" placeholder="e.g. Upper body A" autocomplete="off">
                 <button type="button" id="clear-routine-name" class="icon-btn" aria-label="Clear routine name"
                   title="Clear routine name">&times;</button>
               </span>

@@ -201,6 +201,11 @@ test("Trends uses the shared read and decode pipeline for workouts and latest da
   assert.match(environment.element("#measurement-table").innerHTML, /81 kg/);
   assert.match(environment.element("#measurement-chart").innerHTML,
     /<svg [^>]*role="img" aria-label="[^"]*1 data point on 2026-10-28\. Latest 81, lowest 81, highest 81\./);
+  // A flat series is padded by 10% of its value, so the y-axis spans 72.9 to 89.1 instead of starting at 0.
+  const axisLabels = [...environment.element("#measurement-chart").innerHTML.matchAll(/text-anchor="end">([^<]+)</g)]
+    .map(match => match[1]);
+  assert.equal(axisLabels[0], "72.9");
+  assert.equal(axisLabels[axisLabels.length - 1], "89.1");
   assert.equal(environment.element("#results").hidden, false);
   assert.equal(environment.element("#load-data").disabled, false);
 });

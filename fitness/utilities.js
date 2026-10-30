@@ -35,8 +35,9 @@
     return new SafeHtml(String(markup));
   }
 
+  // Accepts an `html` result or an array of them; plain strings are escaped like any other interpolation.
   function setHtml(element, markup) {
-    element.innerHTML = String(markup);
+    element.innerHTML = renderHtmlValue(markup);
   }
 
   function getLocalDateString(date = new Date()) {

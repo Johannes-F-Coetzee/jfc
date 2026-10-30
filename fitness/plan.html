@@ -59,9 +59,9 @@
               <button type="button" id="choose-saved-plan" class="btn link" hidden>Choose a saved plan</button>
             </div>
             <span class="routine-picker">
-              <select id="plan-name-select" hidden></select>
+              <select id="plan-name-select" aria-labelledby="plan-name-label" hidden></select>
               <span id="plan-name-capture" class="routine-capture">
-                <input id="plan-name" autocomplete="off" placeholder="e.g. Strength cycle">
+                <input id="plan-name" aria-labelledby="plan-name-label" autocomplete="off" placeholder="e.g. Strength cycle">
                 <button type="button" id="clear-plan-name" class="icon-btn" aria-label="Clear plan name"
                   title="Clear plan name">&times;</button>
               </span>
@@ -153,7 +153,7 @@
       <div class="day-capture">
         <button type="button" class="btn ghost small day-add">+ Add</button>
         <form class="day-routine-form" hidden>
-          <select class="day-routine-select" required></select>
+          <select class="day-routine-select" aria-label="Routine for this day" required></select>
           <button type="submit" class="btn ghost small day-confirm">&#10003;</button>
           <p class="day-capture-status error" role="alert"></p>
         </form>

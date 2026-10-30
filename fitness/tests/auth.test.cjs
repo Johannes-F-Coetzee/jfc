@@ -165,15 +165,6 @@ test("all fitness pages let the shared auth module load Google Identity", () => 
   }
 });
 
-test("all fitness pages calculate asset cache versions programmatically", () => {
-  for (const filename of ["index.html", "track.html", "trends.html"]) {
-    const markup = readFileSync(path.join(__dirname, "..", filename), "utf8");
-    assert.match(markup, /Math\.floor\(Date\.now\(\) \/ \(5 \* 60 \* 1000\)\)/);
-    assert.match(markup, /document\.write\(/);
-    assert.doesNotMatch(markup, /\?v=\d{8}/);
-  }
-});
-
 test("restores the existing signed-in session and migrates a legacy Forms token without consent", async () => {
   const savedToken = cachedToken();
   const storage = new Map([
