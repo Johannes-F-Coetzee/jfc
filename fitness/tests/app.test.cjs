@@ -50,7 +50,10 @@ function createEnvironment(options = {}) {
   WorkoutAuth.init({ onSignIn: showTracker, onSignOut: hideTracker });
 })();`);
   assert.notEqual(source, SOURCE);
-  runInNewContext(source, {
+  const sourceWithoutTemplates = source.replace("function renderWorkout(workout) {",
+    "function renderWorkout() {\n    return;\n  }\n  function renderWorkoutWithTemplates(workout) {");
+  assert.notEqual(sourceWithoutTemplates, source);
+  runInNewContext(sourceWithoutTemplates, {
     window, WorkoutAuth: authentication, WorkoutRoutines: routines, WorkoutForms: window.WorkoutForms,
     document: {
       querySelector: element,

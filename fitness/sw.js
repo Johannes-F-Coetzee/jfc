@@ -5,14 +5,14 @@
 // retry queue keep working unchanged. Bump CACHE_VERSION whenever APP_SHELL changes.
 "use strict";
 
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const CACHE_NAME = `fitness-shell-v${CACHE_VERSION}`;
 const APP_SHELL = [
   "./", "index.html", "track.html", "plan.html", "trends.html", "styles.css", "manifest.webmanifest",
   "exercise_favicon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png",
   "icons/apple-touch-icon.png", "config.js", "settings.js", "shared-header.js", "utilities.js", "auth.js",
-  "google-forms.js", "submission-status.js", "connectivity.js", "routines.js", "plans.js", "pwa.js", "app.js",
-  "track.js", "plan.js", "trends.js"
+  "google-forms.js", "submission-status.js", "connectivity.js", "routines.js", "plans.js", "plan-schedule.js",
+  "logged-workouts.js", "workout-suggestions.js", "pwa.js", "app.js", "track.js", "plan.js", "trends.js"
 ];
 
 // Cache keys ignore any query string so a cache-busting parameter never stores a second copy.

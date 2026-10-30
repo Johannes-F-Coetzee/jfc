@@ -6,6 +6,7 @@
   const SUBMISSION_STATUS = window.WorkoutSubmissionStatus;
   const WORKOUT_UTILITIES = window.WorkoutUtilities;
   const { html, setHtml } = WORKOUT_UTILITIES;
+  const SUGGESTIONS = window.WorkoutSuggestions;
   const STORAGE_KEYS = {
     draft: "workout.draft",
     queue: "workout.queue",
@@ -53,6 +54,72 @@
     }
   }
 
+  // ---------- account-scoped local data ----------
+  // The draft and recent history belong to one account: they live under "<name>:<email>" so accounts that share
+  // a browser never see each other's workouts.
+  function accountStorageKey(name, email = currentUser?.email) {
+    return email ? `${STORAGE_KEYS[name]}:${email}` : "";
+  }
+
+  function readAccountJson(name, fallback) {
+    const key = accountStorageKey(name);
+
+    return key ? readJson(localStorage, key, fallback) : fallback;
+  }
+
+  function writeAccountJson(name, value) {
+    const key = accountStorageKey(name);
+
+    return key ? writeJson(localStorage, key, value) : false;
+  }
+
+  function removeAccountItem(name) {
+    const key = accountStorageKey(name);
+
+    if (!key) {
+      return;
+    }
+
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`Could not clear ${name} on this device.`, error);
+    }
+  }
+
+  // Data saved before accounts were separated has no owner. The first account to sign in after the upgrade
+  // adopts it, and the shared keys are removed once it is safely stored under that account.
+  function adoptLegacyLocalData(email) {
+    for (const name of ["draft", "history"]) {
+      const legacyKey = STORAGE_KEYS[name];
+      const accountKey = accountStorageKey(name, email);
+
+      try {
+        const legacyValue = localStorage.getItem(legacyKey);
+
+        if (legacyValue === null) {
+          continue;
+        }
+
+        const accountValue = readJson(localStorage, accountKey, null);
+        let adopted = legacyValue;
+
+        if (accountValue !== null && name === "history") {
+          adopted = JSON.stringify(mergeById(accountValue, readJson(localStorage, legacyKey, []),
+            entry => entry.sessionId).slice(0, HISTORY_LIMIT));
+        } else if (accountValue !== null) {
+          adopted = null;
+        }
+
+        if (adopted === null || writeJson(localStorage, accountKey, JSON.parse(adopted))) {
+          localStorage.removeItem(legacyKey);
+        }
+      } catch (error) {
+        console.error(`Could not move the saved ${name} to this account.`, error);
+      }
+    }
+  }
+
   // ---------- configuration checks ----------
   function hasFormConfig() {
     return WorkoutForms.hasSubmissionConfiguration(FORM_CONFIGURATION);
@@ -84,7 +151,16 @@
 
   // ---------- authentication (see auth.js) ----------
   function showTracker(user) {
+    const accountChanged = currentUser?.email !== user.email;
     currentUser = user;
+
+    if (accountChanged) {
+      adoptLegacyLocalData(user.email);
+      clearedWorkout = null;
+      $("#undo-clear").hidden = true;
+      renderWorkout(readAccountJson("draft", {}));
+    }
+
     $("#tracker-view").hidden = false;
     $("#submit-workout").disabled = !hasFormConfig();
     refreshRoutineList();
@@ -99,6 +175,7 @@
       setRoutineStatus("Shared routines aren't set up, so only workouts typed here can be logged.");
     }
 
+    SUGGESTIONS?.signedIn(user);
     renderHistory();
     updateQueueUi();
     retryQueue();
@@ -110,6 +187,8 @@
     routinesLoaded = false;
     refreshRoutineList();
     refreshExerciseNames();
+    SUGGESTIONS?.signedOut();
+    $("#exercises").innerHTML = "";
     $("#tracker-view").hidden = true;
   }
 
@@ -303,7 +382,13 @@
   function saveDraft() {
     updateEstimate();
     clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => writeJson(localStorage, STORAGE_KEYS.draft, collectWorkout()), 300);
+    const draftKey = accountStorageKey("draft");
+    const workout = collectWorkout();
+
+    if (draftKey) {
+      // Capture the account and values now, so a late save can never land in another account's draft.
+      draftTimer = setTimeout(() => writeJson(localStorage, draftKey, workout), 300);
+    }
   }
 
   // Timed sets count as entered, each rep counts 10 s, plus 1 min rest between consecutive sets.
@@ -373,6 +458,7 @@
       catalog.warnings.join(" "),
       catalog.warnings.length ? "error" : "ok"
     );
+    SUGGESTIONS?.refresh();
   }
 
   function setRoutineStatus(message, kind = "") {
@@ -552,9 +638,9 @@
       version: LOCAL_DATA_VERSION,
       email: currentUser.email,
       exportedAt: new Date().toISOString(),
-      draft: readJson(localStorage, STORAGE_KEYS.draft, null),
+      draft: readAccountJson("draft", null),
       queue: readQueue().filter(row => isOwnedBy(row, currentUser.email)),
-      history: readJson(localStorage, STORAGE_KEYS.history, [])
+      history: readAccountJson("history", [])
     });
     setStatus("Exported this device's workout data.", "ok");
   }
@@ -562,18 +648,18 @@
   async function importLocalData(file) {
     try {
       const imported = parseLocalDataExport(await file.text(), currentUser.email);
-      const history = mergeById(readJson(localStorage, STORAGE_KEYS.history, []), imported.history,
+      const history = mergeById(readAccountJson("history", []), imported.history,
         entry => entry.sessionId)
         .sort((first, second) => second.date.localeCompare(first.date))
         .slice(0, HISTORY_LIMIT);
       const queue = mergeById(readQueue(), imported.queue, row => row.id);
 
-      if (!writeQueue(queue) || !writeJson(localStorage, STORAGE_KEYS.history, history)) {
+      if (!writeQueue(queue) || !writeAccountJson("history", history)) {
         throw new Error("This device could not save the imported data (storage is full or blocked).");
       }
 
-      if (imported.draft && !readJson(localStorage, STORAGE_KEYS.draft, null)) {
-        writeJson(localStorage, STORAGE_KEYS.draft, imported.draft);
+      if (imported.draft && !readAccountJson("draft", null)) {
+        writeAccountJson("draft", imported.draft);
         renderWorkout(imported.draft);
       }
 
@@ -766,7 +852,7 @@
     }
 
     updateQueueUi();
-    const history = readJson(localStorage, STORAGE_KEYS.history, []);
+    const history = readAccountJson("history", []);
     const perceivedExertionValues = rows.map(row => row.rpe);
     history.unshift({
       sessionId,
@@ -775,13 +861,13 @@
       exercises: workout.exercises.map(exercise => `${exercise.name} ×${exercise.sets.length}`),
       avgRpe: Math.round((perceivedExertionValues.reduce((total, value) => total + value, 0) / perceivedExertionValues.length) * 10) / 10
     });
-    writeJson(localStorage, STORAGE_KEYS.history, history.slice(0, HISTORY_LIMIT));
+    writeAccountJson("history", history.slice(0, HISTORY_LIMIT));
     $("#submit-workout").disabled = true;
     setStatus(SUBMISSION_STATUS.submitting("workout"));
     const sent = await flushQueue();
     $("#submit-workout").disabled = false;
     renderWorkout({ routine: workout.routine, exercises: routineTemplate(workout) });
-    localStorage.removeItem(STORAGE_KEYS.draft);
+    removeAccountItem("draft");
     renderHistory();
     setStatus(sent
       ? `${SUBMISSION_STATUS.sent("workout")} (${rows.length} set${rows.length === 1 ? "" : "s"}).`
@@ -790,12 +876,21 @@
   }
 
   function renderHistory() {
-    const history = readJson(localStorage, STORAGE_KEYS.history, []);
+    const history = readAccountJson("history", []);
     setHtml($("#history"), history.length
       ? history.map(workout => html`<li><strong>${workout.date}</strong> ${workout.routine || "Workout"}
           <span class="muted">· avg difficulty ${workout.avgRpe}</span><br>
           <span class="muted">${workout.exercises.join(", ")}</span></li>`)
       : html`<li class="muted">No workouts logged yet.</li>`);
+    SUGGESTIONS?.refresh();
+  }
+
+  // Workouts this device knows about (recent history plus unsent sets), used to avoid suggesting them again.
+  function getLoggedWorkouts() {
+    const queuedRows = readQueue().filter(row => isOwnedBy(row, currentUser?.email));
+
+    return readAccountJson("history", []).concat(queuedRows)
+      .map(entry => ({ date: entry.date, routine: entry.routine }));
   }
 
   // ---------- event wiring ----------
@@ -949,7 +1044,7 @@
       clearedWorkout = collectWorkout();
       clearTimeout(draftTimer);
       renderWorkout({});
-      localStorage.removeItem(STORAGE_KEYS.draft);
+      removeAccountItem("draft");
       setStatus("Workout cleared.");
       $("#undo-clear").hidden = false;
       $("#undo-clear").focus();
@@ -990,6 +1085,7 @@
     });
 
     $("#retry-queue").addEventListener("click", retryQueue);
+    $("#workout-date").addEventListener("change", () => SUGGESTIONS?.refresh());
     $("#export-local-data").addEventListener("click", exportLocalData);
     $("#import-local-data").addEventListener("click", () => $("#import-local-file").click());
     $("#import-local-file").addEventListener("change", async event => {
@@ -1008,8 +1104,14 @@
   function boot() {
     showSetupWarnings();
     wireEvents();
-    renderWorkout(readJson(localStorage, STORAGE_KEYS.draft, {}));
+    renderWorkout(readAccountJson("draft", {}));
     updateRoutineButtons();
+    SUGGESTIONS?.init({
+      getDate: () => $("#workout-date").value,
+      getLoggedWorkouts,
+      hasRoutine: name => Boolean(findRoutine(name)),
+      loadRoutine
+    });
     WorkoutAuth.init({ onSignIn: showTracker, onSignOut: hideTracker });
   }
 

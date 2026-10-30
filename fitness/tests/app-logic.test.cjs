@@ -7,7 +7,8 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const NAMES = [
   "parseDuration", "formatDuration", "estimateSeconds", "formatEstimate", "validate", "buildRows",
   "routineTemplate", "flushQueue", "readQueue", "writeQueue", "readJson", "writeJson", "showTracker",
-  "parseLocalDataExport", "mergeById", "isOwnedBy"
+  "parseLocalDataExport", "mergeById", "isOwnedBy", "readAccountJson", "writeAccountJson", "accountStorageKey",
+  "getLoggedWorkouts"
 ];
 
 const failWrites = { value: false };
@@ -25,7 +26,8 @@ function loadApp({ storage = new Map(), post = async () => {}, configured = true
       }
 
       storage.set(key, String(value));
-    }
+    },
+    removeItem: key => storage.delete(key)
   };
   const posted = [];
   const app = loadInternals("app.js", NAMES, {
@@ -261,4 +263,78 @@ test("merging keeps existing items first and skips ones whose id is already know
 
   assert.deepEqual(plain(mergeById([{ id: 1 }, { id: 2 }], [{ id: 2 }, { id: 3 }], item => item.id)),
     [{ id: 1 }, { id: 2 }, { id: 3 }]);
+});
+
+const entry = (sessionId, date = "2026-11-04", routine = "Push") => ({ sessionId, date, routine, exercises: [] });
+
+test("recent history and drafts are kept per account, so accounts on one device never see each other's", () => {
+  const { app, storage } = loadApp();
+  signIn(app, "a@example.com");
+  app.writeAccountJson("history", [entry("a1")]);
+  app.writeAccountJson("draft", { routine: "A draft" });
+  signIn(app, "b@example.com");
+
+  assert.deepEqual(plain(app.readAccountJson("history", [])), []);
+  assert.deepEqual(plain(app.readAccountJson("draft", {})), {});
+  app.writeAccountJson("history", [entry("b1")]);
+  assert.deepEqual([...storage.keys()].filter(key => key.startsWith("workout.")).sort(),
+    ["workout.draft:a@example.com", "workout.history:a@example.com", "workout.history:b@example.com"]);
+  assert.deepEqual(plain(app.getLoggedWorkouts()).map(workout => workout.date), ["2026-11-04"]);
+  assert.equal(app.writeAccountJson("history", []), true);
+});
+
+test("nothing is read or written when no account is signed in", () => {
+  const { app, storage } = loadApp();
+
+  assert.equal(app.accountStorageKey("history"), "");
+  assert.equal(app.writeAccountJson("history", [entry("x")]), false);
+  assert.deepEqual(plain(app.readAccountJson("history", ["fallback"])), ["fallback"]);
+  assert.equal(storage.size, 0);
+});
+
+test("the first account to sign in adopts history and a draft saved before accounts were separated", () => {
+  const storage = new Map([
+    ["workout.history", JSON.stringify([entry("old1"), entry("old2", "2026-11-03")])],
+    ["workout.draft", JSON.stringify({ routine: "Old draft" })]
+  ]);
+  const { app } = loadApp({ storage });
+  signIn(app, "a@example.com");
+
+  assert.deepEqual(plain(app.readAccountJson("history", [])).map(item => item.sessionId), ["old1", "old2"]);
+  assert.deepEqual(plain(app.readAccountJson("draft", {})), { routine: "Old draft" });
+  assert.equal(storage.has("workout.history"), false);
+  assert.equal(storage.has("workout.draft"), false);
+
+  signIn(app, "b@example.com");
+  assert.deepEqual(plain(app.readAccountJson("history", [])), []);
+});
+
+test("adopting old data merges into an account's existing history and never replaces its draft", () => {
+  const storage = new Map([
+    ["workout.history", JSON.stringify([entry("old"), entry("shared")])],
+    ["workout.draft", JSON.stringify({ routine: "Old draft" })],
+    ["workout.history:a@example.com", JSON.stringify([entry("new"), entry("shared")])],
+    ["workout.draft:a@example.com", JSON.stringify({ routine: "Current draft" })]
+  ]);
+  const { app } = loadApp({ storage });
+  signIn(app, "a@example.com");
+
+  assert.deepEqual(plain(app.readAccountJson("history", [])).map(item => item.sessionId), ["new", "shared", "old"]);
+  assert.deepEqual(plain(app.readAccountJson("draft", {})), { routine: "Current draft" });
+  assert.equal(storage.has("workout.history"), false);
+  assert.equal(storage.has("workout.draft"), false);
+});
+
+test("old data stays where it is when it cannot be moved to the account yet", () => {
+  const storage = new Map([["workout.history", JSON.stringify([entry("old")])]]);
+  const { app } = loadApp({ storage });
+  failWrites.value = true;
+  signIn(app, "a@example.com");
+  failWrites.value = false;
+
+  assert.equal(storage.has("workout.history"), true);
+  assert.equal(storage.has("workout.history:a@example.com"), false);
+
+  signIn(app, "b@example.com");
+  assert.deepEqual(plain(app.readAccountJson("history", [])).map(item => item.sessionId), ["old"]);
 });

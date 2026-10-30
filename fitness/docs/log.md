@@ -47,3 +47,20 @@ The legacy routines file is no longer a data source. To migrate an existing rout
 ## Local data export and import
 
 **Export my data** (under *Recent workouts*) downloads this account's draft workout, unsent sets and recent workouts as JSON; **Import data** merges such a file back in (existing entries win, duplicates are skipped, the draft is only restored when none exists). Files from another account are rejected. Unsent sets are stored on this device only, and a full or blocked browser storage is reported instead of silently losing the workout.
+
+## Suggested workout
+
+The **Suggested workout** card (signed-in view) reads the saved plans from the plan form, using the same Forms pipeline and permissions as routines and the Plan page. Plans load automatically on sign-in; **Refresh plans** retries if Google needs a permission popup. Choose a plan and the card lists what to log for the date in the form, each with a button that loads that routine. The chosen plan is remembered per account on this device under `workout.activePlan:<email>`.
+
+- A plan repeats its cycle forever after its start date; before the start date nothing is suggested.
+- Workouts scheduled on the chosen date are suggested first. Ones scheduled up to two days earlier are offered too, marked *Missed*, so a skipped session is not forgotten. Future sessions are never suggested.
+- A routine already logged within one day either side of its scheduled day (name compared ignoring case) is not suggested. Logged workouts come from the workout log form for the signed-in account, plus recent history and unsent sets on this device. If the form cannot be read, the card says suggestions only consider this device's workouts.
+- If a suggested routine is not in the loaded shared routines, its button is disabled until routines load.
+
+The rules live in [`plan-schedule.js`](../plan-schedule.js) (`OVERDUE_LOOKBACK_DAYS`, `LOGGED_TOLERANCE_DAYS`), the form reader in [`logged-workouts.js`](../logged-workouts.js) and the card in [`workout-suggestions.js`](../workout-suggestions.js).
+
+## Local data and accounts
+
+Everything the Log page keeps on this device belongs to one account: the draft workout (`workout.draft:<email>`), recent workouts (`workout.history:<email>`) and unsent sets (rows in `workout.queue`, each tagged with its `email`). Accounts that share a browser never see or send each other's data, and signing out clears the form. The pending-save entries for routines and plans, the selected plan and the Track and Plan page data were already stored per account. Theme, units and default measure stay device-wide preferences.
+
+History and drafts saved before this change had no owner (`workout.history`, `workout.draft`). The first account to sign in afterwards adopts them: they are merged into that account's data and the old keys are removed once the copy succeeds. On a device that more than one person used, whoever signs in first receives that older history, because it never recorded who logged it. Only the last 20 workouts were kept, and nothing sent to Google Forms is affected.

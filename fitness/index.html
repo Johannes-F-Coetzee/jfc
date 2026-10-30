@@ -21,6 +21,10 @@
   <script src="google-forms.js" defer></script>
   <script src="submission-status.js" defer></script>
   <script src="routines.js" defer></script>
+  <script src="plans.js" defer></script>
+  <script src="plan-schedule.js" defer></script>
+  <script src="logged-workouts.js" defer></script>
+  <script src="workout-suggestions.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 
@@ -38,6 +42,20 @@
     </section>
 
     <section id="tracker-view" hidden>
+      <section id="plan-suggestions" class="card" aria-labelledby="plan-suggestions-heading">
+        <h2 id="plan-suggestions-heading">Suggested workout</h2>
+        <div class="plan-picker">
+          <label class="field">Plan
+            <select id="suggestion-plan-select" disabled>
+              <option value="">No plan</option>
+            </select>
+          </label>
+          <button type="button" id="refresh-plans" class="btn ghost small">Refresh plans</button>
+        </div>
+        <p id="plan-suggestion-status" class="status" role="status" aria-live="polite"></p>
+        <ul id="suggestion-list" class="suggestions"></ul>
+      </section>
+
       <form id="workout-form" class="card" novalidate>
         <div class="grid">
           <label class="field">Date
